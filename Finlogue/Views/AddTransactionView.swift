@@ -27,6 +27,7 @@ struct AddTransactionView: View {
                         Text("Income").tag(TransactionType.income)
                         Text("Expense").tag(TransactionType.expense)
                     }
+                    .frame(height: 36)
                     
                     Picker("Category", selection: $viewModel.selectedCategory) {
                         Text("Select Category").tag("")
@@ -34,6 +35,7 @@ struct AddTransactionView: View {
                             Text(category.name).tag(category.name)
                         }
                     }
+                    .frame(height: 36)
                     
                     HStack {
                         Text("Name")
@@ -56,9 +58,10 @@ struct AddTransactionView: View {
                             Text(account.name).tag(account as Account?)
                         }
                     }
+                    .frame(height: 36)
                     
                     DatePicker("Date", selection: $viewModel.transactionDate, displayedComponents: [.date])
-                        .padding(.vertical, 2)
+                        .padding(.vertical, 1)
                 }
                 .listStyle(.plain)
                 .scrollDisabled(true)
@@ -74,7 +77,7 @@ struct AddTransactionView: View {
                             .kerning(0.96)
                             .foregroundStyle(.white)
                             .disabled(viewModel.selectedCategory.isEmpty || viewModel.amount.isEmpty || viewModel.selectedAccount == nil)
-                            .padding(.vertical, 16)
+                            .padding(.vertical, 12)
                             .padding(.horizontal, 32)
                             .frame(maxWidth: .infinity)
                             .background((viewModel.selectedCategory.isEmpty || viewModel.amount.isEmpty || viewModel.selectedAccount == nil) ? .gray : .black)
@@ -88,7 +91,7 @@ struct AddTransactionView: View {
                             .font(Font.system(size: 18, weight: .medium))
                             .kerning(0.96)
                             .foregroundStyle(.black)
-                            .padding(.vertical, 16)
+                            .padding(.vertical, 12)
                             .padding(.horizontal, 32)
                             .frame(maxWidth: .infinity)
                             .background(.white)
@@ -96,6 +99,7 @@ struct AddTransactionView: View {
                     }
                 }
                 .padding(.horizontal, 16)
+                .padding(.bottom, 12)
             }
         }
     }

@@ -41,7 +41,7 @@ struct HomeView: View {
             }
             .sheet(isPresented: $viewModel.showAddTransaction) {
                 AddTransactionView(viewModel: viewModel)
-                    .presentationDetents([.large, .height(480)])
+                    .presentationDetents([.large, .height(460)])
                     .presentationDragIndicator(.visible)
             }
             .overlay {
