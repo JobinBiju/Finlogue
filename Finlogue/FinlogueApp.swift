@@ -8,10 +8,11 @@
 import SwiftUI
 
 @main
-struct ExpenseTrackerApp: App {
+struct FinlogueApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            HomeView()
+                .modelContainer(for: [Transaction.self, Account.self, Category.self])
         }
     }
 }
