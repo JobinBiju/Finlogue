@@ -16,7 +16,7 @@ struct AddCategoryView: View {
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading) {
-                Text("Add Account")
+                Text("Add Category")
                     .font(Font.system(size: 28, weight: .bold))
                     .padding(.horizontal)
                     .padding(.top, 32)
