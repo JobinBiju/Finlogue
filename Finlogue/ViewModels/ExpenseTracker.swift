@@ -22,6 +22,7 @@ class ExpenseTrackerViewModel: ObservableObject {
         selectedTransactionType = .expense
         selectedCategory = ""
         amount = ""
+        name = ""
         selectedAccount = nil
         transactionDate = Date()
     }
