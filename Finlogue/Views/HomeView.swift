@@ -161,11 +161,13 @@ struct HomeView: View {
                     .frame(maxWidth: .infinity)
                     .background(.green8)
                     .clipShape(RoundedRectangle(cornerRadius: 30))
+                    .shadow(color: .green7.opacity(0.4), radius: 5, y: 5)
                     .padding(.horizontal, 24)
                 }
                 .padding(.bottom, 32)
                 .frame(maxHeight: .infinity, alignment: .bottom)
             }
+            
             .ignoresSafeArea()
         }
         .preferredColorScheme(.light)
