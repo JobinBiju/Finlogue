@@ -1,111 +1,60 @@
 # Finlogue
 
-A modern, intuitive expense tracking app built with **SwiftUI** and **SwiftData**. Finlogue helps you manage your income and expenses, categorize transactions, and track multiple accounts seamlessly. Perfect for personal finance management on iOS.
-
----
-
-## Table of Contents
-
-- Features
-- Screenshots
-- Installation
-- Usage
-- Project Structure
-- Contributing
-- License
+A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI**, **SwiftData**, and **WatchConnectivity**. Log payments from bank accounts, credit cards, and cash; categorize spending; set budgets; automate recurring payments and EMIs — and do quick entry right from your wrist, with transactions syncing both ways between phone and watch.
 
 ---
 
 ## Features
 
-- **Transaction Management**:
+### iOS app
 
-  - Categorize transactions as Income or Expense.
-  - Predefined categories (e.g., Salary, Food, Transport) with custom category creation.
-  - Swipe to delete transactions with automatic account balance updates.
+- **Transactions** — add, edit, delete; income vs expense; notes; grouped by day with search and filters (type, account, category, date range).
+- **Accounts** — bank, credit card, and cash accounts. Balances are *computed* from transactions (no drift). Credit cards track outstanding spend and available credit against the limit.
+- **Categories** — customizable with SF Symbol icons and colors; sensible defaults seeded on first launch.
+- **Insights** — Swift Charts: spending-by-category donut, cumulative daily spend trend, and income vs expense across the last 6 months, with a month selector.
+- **Budgets** — monthly limit per category with progress bars and over-budget warnings.
+- **Recurring payments & mandates** — subscriptions, EMIs, and loan auto-pay. Auto-post rules log the transaction when due (with catch-up for missed periods, each posted exactly once); confirm-first rules appear as Upcoming reminders on Home. Loans stop automatically after the last installment.
+- **Display currency** — INR by default, configurable in Settings.
+- Full **dark mode** support.
 
-- **Account Management**:
+### Watch app
 
-  - Add and manage multiple bank accounts and credit cards.
-  - Support for negative balances.
-  - Track account balances updated with each transaction.
+- Balance and this-month spend at a glance, plus the recent transaction list.
+- **Quick add** in three taps: amount (preset chips or digital crown) → category (recently used first) → account (last used first). Saves locally and syncs to the phone.
 
-- **Intuitive UI**:
+### Sync (WatchConnectivity)
 
-  - Home screen with a calendar-based list view of transactions (latest to oldest).
-  - Persistent "Add Transaction" button with a bottom sheet for quick entry.
-  - Settings view to manage accounts and categories via bottom sheets.
-
-- **Data Persistence**:
-
-  - Built with SwiftData for seamless data storage and retrieval.
-  - Robust data models for transactions, accounts, and categories.
-
-- **Customizable**:
-
-  - Edit or delete categories in the Settings view.
-  - Flexible date picker for transaction entries.
+- **Phone → Watch**: full snapshot via `updateApplicationContext` (durable, survives unreachability, deletions propagate) plus an instant `sendMessage` when reachable.
+- **Watch → Phone**: new transactions via `sendMessage` with a queued `transferUserInfo` fallback; the phone dedupes by UUID, so double delivery is harmless.
+- The phone is the source of truth; the watch keeps its own local SwiftData store so it works offline.
 
 ---
-<!---
-## Screenshots
-
-| Home Screen | Add Transaction | Settings |
-| --- | --- | --- |
-|  |  |  |
-
----
--->
 
 ## Installation
 
 ### Prerequisites
 
 - Xcode 16 or later
-- iOS 17.0 or later
-- Swift 5.9 or later
+- iOS 17.6+ / watchOS 11+
 
 ### Steps
 
-1. **Clone the Repository**:
+1. Clone and open:
 
    ```bash
    git clone https://github.com/JobinBiju/Finlogue.git
    cd Finlogue
+   open Finlogue.xcodeproj
    ```
 
-2. **Open in Xcode**:
+2. Select the **Finlogue** scheme and run (`Cmd + R`). The watch app is embedded and installs with the iOS app on a paired watch.
 
-   - Open `Finlogue.xcodeproj` in Xcode.
-   - Ensure the target is set to an iOS simulator or a connected device.
+3. To test sync in simulators, use a paired iPhone + Watch simulator pair (`xcrun simctl list pairs`).
 
-3. **Build and Run**:
+### Debug launch arguments
 
-   - Press `Cmd + R` to build and run the app.
-   - No additional dependencies are required as Finlogue uses native SwiftUI and SwiftData.
-
----
-
-## Usage
-
-1. **Home Screen**:
-
-   - View all transactions grouped by date, sorted from latest to oldest.
-   - Swipe left on a transaction to delete it.
-   - Tap the gear icon (top-right) to access Settings.
-   - Tap the blue "+" button (bottom) to add a new transaction.
-
-2. **Adding a Transaction**:
-
-   - In the bottom sheet, select Income or Expense.
-   - Choose a category, enter an amount, select an account, and pick a date.
-   - Tap "Save" to record the transaction (account balance updates automatically).
-
-3. **Settings**:
-
-   - **Accounts**: Add new accounts with a name and initial balance (supports negative values).
-   - **Categories**: Add new categories, specify Income or Expense type, or delete existing ones.
-   - Use the respective bottom sheets for adding accounts or categories.
+- `-seedSampleData` — fills the store with two months of sample data (accounts, transactions, budgets, recurring rules).
+- `-initialTab <0-3>` — opens the app on a specific tab.
 
 ---
 
@@ -113,50 +62,21 @@ A modern, intuitive expense tracking app built with **SwiftUI** and **SwiftData*
 
 ```
 Finlogue/
-├── FinlogueApp.swift                  # Main app entry point
-├── Models/
-│   ├── Transaction.swift              # Transaction data model
-│   ├── Account.swift                  # Account data model
-│   ├── Category.swift                 # Category data model
-├── Views/
-│   ├── HomeView.swift                 # Main transaction list view
-│   ├── TransactionRow.swift           # Transaction row component
-│   ├── AddTransactionView.swift       # Transaction entry sheet
-│   ├── SettingsView.swift             # Settings view
-│   ├── AddAccountView.swift           # Account entry sheet
-│   ├── AddCategoryView.swift          # Category entry sheet
-├── ViewModels/
-│   ├── ExpenseTrackerViewModel.swift  # View model for transaction logic
-├── Preview Content/                   # SwiftUI previews
+├── Shared/                      # Compiled into BOTH targets
+│   ├── Models/                  # SwiftData @Models: Transaction, Account, Category,
+│   │                            # Budget, RecurringRule (+ enums)
+│   ├── Sync/                    # Codable DTOs, SnapshotBuilder,
+│   │                            # PhoneSyncEngine (iOS), WatchSyncEngine (watchOS)
+│   └── Support/                 # AppSettings, CurrencyFormatter, Color(hex:)
+├── Finlogue/                    # iOS app
+│   ├── FinlogueApp.swift
+│   ├── Services/                # TransactionStore (single mutation point),
+│   │                            # RecurringEngine, InsightsService
+│   └── Views/                   # Home, Editors, Insights, Budgets, Settings
+└── FinWatch Watch App/          # watchOS app
+    ├── FinWatchApp.swift
+    └── Views/                   # WatchHome, WatchTransactionList, WatchQuickAdd
 ```
-
----
-
-## Contributing
-
-Contributions are welcome! Follow these steps to contribute to Finlogue:
-
-1. **Fork the Repository**:
-
-   - Click the "Fork" button on GitHub to create your own copy.
-
-2. **Create a Branch**:
-
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-3. **Make Changes**:
-
-   - Implement your feature or bug fix.
-   - Ensure code follows Swift best practices and includes appropriate tests.
-
-4. **Submit a Pull Request**:
-
-   - Push your changes to your fork.
-   - Open a pull request with a clear description of your changes.
-
-Please read our Contributing Guidelines for more details.
 
 ---
 
@@ -166,4 +86,4 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ---
 
-*Built with 💻 by Jobin. Powered by SwiftUI and SwiftData.*
+*Built with 💻 by Jobin. Powered by SwiftUI, SwiftData, and WatchConnectivity.*
