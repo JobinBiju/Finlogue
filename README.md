@@ -1,6 +1,6 @@
 # Finlogue
 
-A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI**, **SwiftData**, and **WatchConnectivity**. Log payments from bank accounts, credit cards, and cash; categorize spending; set budgets; automate recurring payments and EMIs — and do quick entry right from your wrist, with transactions syncing both ways between phone and watch.
+A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI**, **SwiftData**, and **WatchConnectivity**. Log payments from bank accounts, credit cards, and cash; move money between your own accounts with transfers; categorize spending; set budgets; automate recurring payments, EMIs, and card bills — and do quick entry right from your wrist, with transactions syncing both ways between phone and watch.
 
 ---
 
@@ -8,19 +8,21 @@ A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI*
 
 ### iOS app
 
-- **Transactions** — add, edit, delete; income vs expense; notes; grouped by day with search and filters (type, account, category, date range).
-- **Accounts** — bank, credit card, and cash accounts. Balances are *computed* from transactions (no drift). Credit cards track outstanding spend and available credit against the limit.
-- **Categories** — customizable with SF Symbol icons and colors; sensible defaults seeded on first launch.
-- **Insights** — Swift Charts: spending-by-category donut, cumulative daily spend trend, and income vs expense across the last 6 months, with a month selector.
+- **Transactions** — add, edit, delete; income, expense, or **transfer**; notes; grouped by day with search and filters (type, account, category, date range). The name field suggests previously logged names as you type — tapping a suggestion also fills in that transaction's category, account, and amount for two-tap repeat entries.
+- **Transfers** — first-class moves between your own accounts (salary sweeps, credit-card bill payments). Both account balances update, but transfers are excluded from income/spent stats, charts, and budgets, so analytics reflect real earning and spending only.
+- **Accounts** — bank, credit card, and cash accounts, grouped as **Banks / Cards / Others** everywhere they're listed. Balances are *computed* from transactions (no drift). Bank-brand gradient cards (HDFC, Axis, Federal Bank) on the Home carousel with snap scrolling.
+- **Credit cards** — credit limit with a utilization gauge and available credit; editable **current outstanding** (rebase to match your real statement anytime); optional **statement day** for the billing cycle, which splits the outstanding into **billed vs unbilled** on the account card. Paying a bill (a transfer into the card) drains the billed amount first.
+- **Categories** — customizable with SF Symbol icons and colors; sensible defaults (including Investments) seeded on first launch.
+- **Insights** — Swift Charts with a nav-bar month switcher: spending-by-category donut with an in-place crossfading legend, cumulative daily spend trend, and income vs expense across the last 6 months. Subtle animations throughout the app — rolling numeric totals, animated budget bars, chart crossfades between months.
 - **Budgets** — monthly limit per category with progress bars and over-budget warnings.
-- **Recurring payments & mandates** — subscriptions, EMIs, and loan auto-pay. Auto-post rules log the transaction when due (with catch-up for missed periods, each posted exactly once); confirm-first rules appear as Upcoming reminders on Home. Loans stop automatically after the last installment.
+- **Recurring payments & mandates** — subscriptions, EMIs, loan auto-pay, and **recurring transfers** (e.g., a monthly salary sweep or card-bill autopay). Auto-post rules log the transaction when due (with catch-up for missed periods, each posted exactly once); confirm-first rules appear as Upcoming reminders on Home. Loans stop automatically after the last installment.
 - **Display currency** — INR by default, configurable in Settings.
-- Full **dark mode** support.
+- **Light theme** enforced app-wide, regardless of the system appearance.
 
 ### Watch app
 
-- Balance and this-month spend at a glance, plus the recent transaction list.
-- **Quick add** in three taps: amount (preset chips or digital crown) → category (recently used first) → account (last used first). Saves locally and syncs to the phone.
+- Balance and this-month spend at a glance on a gradient home screen with compact toolbar controls, plus the recent transaction list and last-sync status.
+- **Quick add** in three taps: amount (preset chips or digital crown) → category (recently used first) → account (grouped Banks / Cards / Others, last used first). Saves locally and syncs to the phone with a success haptic.
 
 ### Sync (WatchConnectivity)
 
@@ -51,10 +53,19 @@ A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI*
 
 3. To test sync in simulators, use a paired iPhone + Watch simulator pair (`xcrun simctl list pairs`).
 
-### Debug launch arguments
+### Running on physical devices
 
-- `-seedSampleData` — fills the store with two months of sample data (accounts, transactions, budgets, recurring rules).
-- `-initialTab <0-3>` — opens the app on a specific tab.
+1. Enable **Developer Mode** on both the iPhone and the watch (Settings → Privacy & Security → Developer Mode, then restart).
+2. Run the **Finlogue** scheme to the iPhone; the watch app installs alongside. If the watch app doesn't appear, run the **FinWatch Watch App** scheme once with the "Apple Watch via iPhone" destination — this registers the watch in your provisioning profile.
+3. First-time watch preparation (Xcode copying symbols) can take 10–20 minutes; keep the watch on its charger next to the phone.
+
+### Debug launch arguments (DEBUG builds only)
+
+- `-seedSampleData` — fills the store with two months of sample data (accounts, transactions, transfers, budgets, recurring rules).
+- `-initialTab <0-3>` — opens the iOS app on a specific tab.
+- `-showAddTransaction` — opens the New Transaction sheet on launch.
+- `-autoAddTestTransaction` (watch) — simulates a quick-add and syncs it to the phone.
+- `-quickAddAccountStep` (watch) — opens the quick-add flow directly on the account step.
 
 ---
 
@@ -63,7 +74,8 @@ A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI*
 ```
 Finlogue/
 ├── Shared/                      # Compiled into BOTH targets
-│   ├── Models/                  # SwiftData @Models: Transaction, Account, Category,
+│   ├── Models/                  # SwiftData @Models: Transaction (incl. transfers),
+│   │                            # Account (groups, billing cycle), Category,
 │   │                            # Budget, RecurringRule (+ enums)
 │   ├── Sync/                    # Codable DTOs, SnapshotBuilder,
 │   │                            # PhoneSyncEngine (iOS), WatchSyncEngine (watchOS)
