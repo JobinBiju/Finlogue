@@ -4,6 +4,22 @@ A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI*
 
 ---
 
+## Screenshots
+
+### iOS
+
+| Home | Insights | Budgets | Settings |
+| --- | --- | --- | --- |
+| ![Home](Screenshots/ios-home.png) | ![Insights](Screenshots/ios-insights.png) | ![Budgets](Screenshots/ios-budgets.png) | ![Settings](Screenshots/ios-settings.png) |
+
+### Apple Watch
+
+| Home | Transactions | Quick add | Account picker |
+| --- | --- | --- | --- |
+| ![Watch Home](Screenshots/watch-home.png) | ![Watch Transactions](Screenshots/watch-transactions.png) | ![Watch Quick Add](Screenshots/watch-quickadd.png) | ![Watch Account Picker](Screenshots/watch-quickadd-account.png) |
+
+---
+
 ## Features
 
 ### iOS app
@@ -64,7 +80,9 @@ A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI*
 - `-seedSampleData` — fills the store with two months of sample data (accounts, transactions, transfers, budgets, recurring rules).
 - `-initialTab <0-3>` — opens the iOS app on a specific tab.
 - `-showAddTransaction` — opens the New Transaction sheet on launch.
+- `-searchText <query>` — pre-fills the home search field.
 - `-autoAddTestTransaction` (watch) — simulates a quick-add and syncs it to the phone.
+- `-watchQuickAdd` / `-watchTransactions` (watch) — opens the quick-add flow or transaction list directly.
 - `-quickAddAccountStep` (watch) — opens the quick-add flow directly on the account step.
 
 ---

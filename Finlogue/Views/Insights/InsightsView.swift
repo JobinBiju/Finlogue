@@ -81,6 +81,7 @@ struct InsightsView: View {
                 HStack(spacing: 4) {
                     Button {
                         if let previous = calendar.date(byAdding: .month, value: -1, to: selectedMonth) {
+                            FinHaptics.selection()
                             selectedMonth = previous
                         }
                     } label: {
@@ -99,6 +100,7 @@ struct InsightsView: View {
                         .frame(minWidth: 68)
                     Button {
                         if let next = calendar.date(byAdding: .month, value: 1, to: selectedMonth) {
+                            FinHaptics.selection()
                             selectedMonth = next
                         }
                     } label: {

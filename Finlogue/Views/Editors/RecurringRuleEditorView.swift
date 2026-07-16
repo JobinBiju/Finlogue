@@ -177,6 +177,7 @@ struct RecurringRuleEditorView: View {
             remainingInstallments: isLoan ? Int(installmentsText) : nil,
             autoPost: autoPost
         )
+        FinHaptics.success()
         dismiss()
     }
 }

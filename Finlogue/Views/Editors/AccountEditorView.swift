@@ -134,6 +134,7 @@ struct AccountEditorView: View {
             creditLimit: type == .creditCard ? limit : nil,
             statementDay: statementDay
         )
+        FinHaptics.success()
         dismiss()
     }
 }

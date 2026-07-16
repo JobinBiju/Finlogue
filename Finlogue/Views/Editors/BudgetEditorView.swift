@@ -80,6 +80,7 @@ struct BudgetEditorView: View {
         guard let limit = Double(limitText) else { return }
         let category = categories.first { $0.id == selectedCategoryID }
         store.saveBudget(budget, category: category, limit: limit)
+        FinHaptics.success()
         dismiss()
     }
 }

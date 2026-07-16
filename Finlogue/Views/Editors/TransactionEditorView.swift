@@ -167,6 +167,11 @@ struct TransactionEditorView: View {
                 .padding(.horizontal, 20)
                 .padding(.bottom, 24)
             }
+            .scrollDismissesKeyboard(.interactively)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                dismissKeyboard()
+            }
         }
         .background(FinTheme.canvas)
         .fontDesign(.rounded)
@@ -191,6 +196,7 @@ struct TransactionEditorView: View {
         HStack(spacing: 0) {
             ForEach(TransactionType.allCases) { candidate in
                 Button {
+                    FinHaptics.selection()
                     withAnimation(.snappy(duration: 0.25)) {
                         type = candidate
                     }
@@ -257,6 +263,7 @@ struct TransactionEditorView: View {
                     HStack(spacing: 8) {
                         ForEach(nameSuggestions) { suggestion in
                             Button {
+                                FinHaptics.tap()
                                 apply(suggestion: suggestion)
                             } label: {
                                 Text(suggestion.name)
@@ -286,6 +293,7 @@ struct TransactionEditorView: View {
                 ForEach(orderedCategories) { category in
                     let isSelected = selectedCategoryID == category.id
                     Button {
+                        FinHaptics.selection()
                         withAnimation(.snappy(duration: 0.2)) {
                             selectedCategoryID = isSelected ? nil : category.id
                         }
@@ -437,6 +445,13 @@ struct TransactionEditorView: View {
         selectedCategoryID = transaction.category?.id
     }
 
+    private func dismissKeyboard() {
+        amountFocused = false
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
+        )
+    }
+
     private func save() {
         guard let amount else { return }
         let account = accounts.first { $0.id == selectedAccountID }
@@ -460,6 +475,7 @@ struct TransactionEditorView: View {
         if let account {
             lastAccountID = account.id.uuidString
         }
+        FinHaptics.success()
         dismiss()
     }
 }

@@ -72,6 +72,7 @@ private struct FinTabBar: View {
                 let tab = tabs[index]
                 let isSelected = selection == index
                 Button {
+                    FinHaptics.selection()
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                         selection = index
                     }

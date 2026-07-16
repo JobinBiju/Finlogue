@@ -122,6 +122,7 @@ struct CategoryEditorView: View {
             symbol: symbol,
             colorHex: colorHex
         )
+        FinHaptics.success()
         dismiss()
     }
 }

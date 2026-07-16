@@ -100,6 +100,7 @@ struct WatchQuickAddView: View {
             ) {
                 ForEach(presets, id: \.self) { preset in
                     Button {
+                        WKInterfaceDevice.current().play(.click)
                         withAnimation(.snappy) {
                             amount = preset
                             crownValue = preset
@@ -121,6 +122,7 @@ struct WatchQuickAddView: View {
         .toolbar {
             ToolbarItemGroup(placement: .bottomBar) {
                 Button {
+                    WKInterfaceDevice.current().play(.click)
                     type = (type == .expense) ? .income : .expense
                     selectedCategory = nil
                 } label: {
@@ -131,6 +133,7 @@ struct WatchQuickAddView: View {
                 .tint(type == .expense ? .red : .green)
                 Spacer()
                 Button {
+                    WKInterfaceDevice.current().play(.click)
                     step = .category
                 } label: {
                     Image(systemName: "chevron.right")
@@ -148,6 +151,7 @@ struct WatchQuickAddView: View {
         List {
             ForEach(orderedCategories) { category in
                 Button {
+                    WKInterfaceDevice.current().play(.click)
                     selectedCategory = category
                     step = .account
                 } label: {

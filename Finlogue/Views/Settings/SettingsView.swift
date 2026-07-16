@@ -59,6 +59,7 @@ struct SettingsView: View {
                     .foregroundStyle(FinTheme.ink)
                 Spacer()
                 Button {
+                    FinHaptics.tap()
                     PhoneSyncEngine.shared.pushSnapshot()
                 } label: {
                     Image(systemName: "arrow.triangle.2.circlepath")
@@ -108,6 +109,7 @@ struct SettingsView: View {
         }
         Section {
             Button {
+                FinHaptics.tap()
                 showAddAccount = true
             } label: {
                 Label("Add account", systemImage: "plus")
@@ -153,6 +155,7 @@ struct SettingsView: View {
         .onTapGesture { editingAccount = account }
         .swipeActions(edge: .trailing) {
             Button(role: .destructive) {
+                FinHaptics.warning()
                 store.delete(account)
             } label: {
                 Label("Delete", systemImage: "trash")
@@ -187,6 +190,7 @@ struct SettingsView: View {
                 .onTapGesture { editingCategory = category }
                 .swipeActions(edge: .trailing) {
                     Button(role: .destructive) {
+                        FinHaptics.warning()
                         store.delete(category)
                     } label: {
                         Label("Delete", systemImage: "trash")
@@ -194,6 +198,7 @@ struct SettingsView: View {
                 }
             }
             Button {
+                FinHaptics.tap()
                 showAddCategory = true
             } label: {
                 Label("Add category", systemImage: "plus")
@@ -239,6 +244,7 @@ struct SettingsView: View {
                 .onTapGesture { editingRule = rule }
                 .swipeActions(edge: .trailing) {
                     Button(role: .destructive) {
+                        FinHaptics.warning()
                         store.delete(rule)
                     } label: {
                         Label("Delete", systemImage: "trash")
@@ -246,6 +252,7 @@ struct SettingsView: View {
                 }
             }
             Button {
+                FinHaptics.tap()
                 showAddRule = true
             } label: {
                 Label("Add recurring payment", systemImage: "plus")
@@ -265,6 +272,7 @@ struct SettingsView: View {
     private var syncSection: some View {
         Section {
             Button {
+                FinHaptics.tap()
                 PhoneSyncEngine.shared.pushSnapshot()
             } label: {
                 HStack(spacing: 12) {

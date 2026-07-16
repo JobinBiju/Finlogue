@@ -143,6 +143,7 @@ struct HomeView: View {
             VStack(spacing: 20) {
                 HStack {
                     Button {
+                        FinHaptics.tap()
                         showFilter = true
                     } label: {
                         Image(systemName: filter.isActive
@@ -170,6 +171,7 @@ struct HomeView: View {
                     Spacer()
 
                     Button {
+                        FinHaptics.tap()
                         showAddTransaction = true
                     } label: {
                         Image(systemName: "plus")
@@ -357,6 +359,7 @@ struct HomeView: View {
                         .monospacedDigit()
                     if !entry.rule.autoPost && entry.dueDate <= .now {
                         Button {
+                            FinHaptics.success()
                             store.postOccurrence(of: entry.rule, on: entry.dueDate)
                         } label: {
                             Text("Pay")
@@ -411,6 +414,7 @@ struct HomeView: View {
                             .onTapGesture { editingTransaction = transaction }
                             .swipeActions(edge: .trailing) {
                                 Button(role: .destructive) {
+                                    FinHaptics.warning()
                                     store.delete(transaction)
                                 } label: {
                                     Label("Delete", systemImage: "trash")

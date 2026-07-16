@@ -44,6 +44,7 @@ struct BudgetsView: View {
                                 .onTapGesture { editingBudget = entry.budget }
                                 .swipeActions(edge: .trailing) {
                                     Button(role: .destructive) {
+                                        FinHaptics.warning()
                                         store.delete(entry.budget)
                                     } label: {
                                         Label("Delete", systemImage: "trash")
@@ -86,6 +87,7 @@ struct BudgetsView: View {
                         .foregroundStyle(FinTheme.ink)
                     Spacer()
                     Button {
+                        FinHaptics.tap()
                         showAddBudget = true
                     } label: {
                         Image(systemName: "plus")
