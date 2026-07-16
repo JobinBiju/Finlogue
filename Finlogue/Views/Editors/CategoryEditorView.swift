@@ -92,6 +92,9 @@ struct CategoryEditorView: View {
             }
             .navigationTitle(category == nil ? "New Category" : "Edit Category")
             .navigationBarTitleDisplayMode(.inline)
+            .scrollContentBackground(.hidden)
+            .background(FinTheme.canvas)
+            .fontDesign(.rounded)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

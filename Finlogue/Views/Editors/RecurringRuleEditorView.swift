@@ -126,6 +126,9 @@ struct RecurringRuleEditorView: View {
             }
             .navigationTitle(rule == nil ? "New Recurring Payment" : "Edit Recurring Payment")
             .navigationBarTitleDisplayMode(.inline)
+            .scrollContentBackground(.hidden)
+            .background(FinTheme.canvas)
+            .fontDesign(.rounded)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

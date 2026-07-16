@@ -82,6 +82,9 @@ struct AccountEditorView: View {
             }
             .navigationTitle(account == nil ? "New Account" : "Edit Account")
             .navigationBarTitleDisplayMode(.inline)
+            .scrollContentBackground(.hidden)
+            .background(FinTheme.canvas)
+            .fontDesign(.rounded)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

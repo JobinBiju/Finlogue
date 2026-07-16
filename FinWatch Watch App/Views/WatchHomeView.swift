@@ -42,7 +42,7 @@ struct WatchHomeView: View {
             HStack(spacing: 4) {
                 Image(systemName: "arrow.up.circle.fill")
                     .font(.system(size: 12))
-                    .foregroundStyle(.red)
+                    .foregroundStyle(FinTheme.red400)
                 Text(CurrencyFormatter.string(monthSpent))
                     .font(.system(size: 16, weight: .semibold, design: .rounded))
                     .monospacedDigit()
@@ -57,18 +57,19 @@ struct WatchHomeView: View {
 
             Spacer(minLength: 0)
 
-            if let lastSync = syncEngine.lastSyncDate {
-                Label(
-                    lastSync.formatted(.relative(presentation: .named)),
-                    systemImage: "checkmark.icloud"
-                )
-                .font(.system(size: 12))
-                .foregroundStyle(.tertiary)
-            } else {
-                Label("Waiting for iPhone", systemImage: "iphone")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.tertiary)
+            Group {
+                if let lastSync = syncEngine.lastSyncDate {
+                    Label(
+                        lastSync.formatted(.relative(presentation: .named)),
+                        systemImage: "checkmark.icloud"
+                    )
+                } else {
+                    Label("Waiting for iPhone", systemImage: "iphone")
+                }
             }
+            .font(.system(size: 12))
+            .foregroundStyle(.tertiary)
+            .padding(.bottom, 16)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(.horizontal, 8)
@@ -87,9 +88,12 @@ struct WatchHomeView: View {
                 Spacer()
                 NavigationLink(destination: WatchQuickAddView()) {
                     Image(systemName: "plus")
+                        .foregroundStyle(.white)
                 }
                 .controlSize(.large)
-                .background(.blue, in: Circle())
+                .buttonStyle(.borderedProminent)
+                .tint(FinTheme.coral)
+                .clipShape(Circle())
             }
         }
     }

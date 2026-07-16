@@ -40,7 +40,7 @@ struct WatchQuickAddView: View {
         case amount, category, account
     }
 
-    private let presets: [Double] = [50, 100, 200, 500]
+    private let presets: [Double] = [50, 100, 500, 2000]
 
     /// Categories of the current type, most recently used first.
     private var orderedCategories: [Category] {
@@ -111,7 +111,7 @@ struct WatchQuickAddView: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.mini)
-                    .tint(amount == preset ? .blue : .gray)
+                    .tint(amount == preset ? FinTheme.coral : .gray)
                 }
             }
         }
@@ -136,7 +136,7 @@ struct WatchQuickAddView: View {
                     Image(systemName: "chevron.right")
                 }
                 .controlSize(.large)
-                .background(amount > 0 ? Color.blue : Color.gray.opacity(0.4), in: Circle())
+                .background(amount > 0 ? FinTheme.coral : Color.gray.opacity(0.4), in: Circle())
                 .disabled(amount <= 0)
             }
         }
@@ -190,7 +190,12 @@ struct WatchQuickAddView: View {
                                     .font(.system(size: 12, weight: .semibold))
                                     .foregroundStyle(.white)
                                     .frame(width: 24, height: 24)
-                                    .background(.blue.opacity(0.7), in: Circle())
+                                    .background(
+                                        account.type == .creditCard
+                                            ? FinTheme.coral
+                                            : FinTheme.blue.opacity(0.85),
+                                        in: Circle()
+                                    )
                                 Text(account.name)
                                     .font(.system(size: 14, weight: .medium))
                                     .lineLimit(1)

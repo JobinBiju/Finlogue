@@ -24,16 +24,22 @@ struct BudgetsView: View {
     var body: some View {
         NavigationStack {
             List {
+                headerSection
                 if budgets.isEmpty {
-                    ContentUnavailableView(
-                        "No budgets yet",
-                        systemImage: "gauge.with.needle",
-                        description: Text("Set a monthly limit per category and track your spending against it.")
-                    )
+                    Section {
+                        ContentUnavailableView(
+                            "No budgets yet",
+                            systemImage: "gauge.with.needle",
+                            description: Text("Set a monthly limit per category and track your spending against it.")
+                        )
+                        .listRowBackground(Color.clear)
+                    }
                 } else {
                     Section {
                         ForEach(progress, id: \.budget.id) { entry in
                             BudgetProgressRow(budget: entry.budget, spent: entry.spent)
+                                .listRowBackground(FinTheme.paper)
+                                .listRowSeparatorTint(FinTheme.lineSoft)
                                 .contentShape(Rectangle())
                                 .onTapGesture { editingBudget = entry.budget }
                                 .swipeActions(edge: .trailing) {
@@ -50,30 +56,54 @@ struct BudgetsView: View {
                                     .tint(.orange)
                                 }
                         }
-                    } footer: {
-                        Text("Progress is for \(Date.now.formatted(.dateTime.month(.wide))).")
                     }
                 }
             }
             .listStyle(.insetGrouped)
-            .listSectionSpacing(16)
-            .navigationTitle("Budgets")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showAddBudget = true
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title3)
-                    }
-                }
-            }
+            .listSectionSpacing(20)
+            .scrollContentBackground(.hidden)
+            .background(FinTheme.canvas)
+            .contentMargins(.bottom, 88, for: .scrollContent)
+            .contentMargins(.horizontal, 24, for: .scrollContent)
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showAddBudget) {
                 BudgetEditorView()
             }
             .sheet(item: $editingBudget) { budget in
                 BudgetEditorView(budget: budget)
             }
+        }
+    }
+
+    private var headerSection: some View {
+        Section {
+        } header: {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text("Budgets")
+                        .font(.system(size: 26, weight: .heavy))
+                        .kerning(-0.5)
+                        .foregroundStyle(FinTheme.ink)
+                    Spacer()
+                    Button {
+                        showAddBudget = true
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 44, height: 44)
+                            .background(FinTheme.coral, in: Circle())
+                            .shadow(color: FinTheme.coral.opacity(0.28), radius: 12, x: 0, y: 8)
+                    }
+                    .buttonStyle(.plain)
+                }
+                Text("Progress is for \(Date.now.formatted(.dateTime.month(.wide))).")
+                    .font(.system(size: 13))
+                    .foregroundStyle(FinTheme.ink400)
+            }
+            .textCase(nil)
+            .finHeaderAligned()
+            .padding(.top, 8)
         }
     }
 }
@@ -88,36 +118,51 @@ struct BudgetProgressRow: View {
 
     private var isOver: Bool { fraction > 1 }
 
+    private var fillColor: Color {
+        if isOver { return FinTheme.red }
+        if fraction > 0.85 { return FinTheme.amber }
+        return FinTheme.lime400
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
                 Image(systemName: budget.category?.symbol ?? "tag")
-                    .font(.caption)
+                    .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.white)
-                    .frame(width: 28, height: 28)
+                    .frame(width: 30, height: 30)
                     .background(
-                        Color(hex: budget.category?.colorHex ?? "#94A3B8"),
-                        in: RoundedRectangle(cornerRadius: 8)
+                        Color(hex: budget.category?.colorHex ?? "#8C877B"),
+                        in: RoundedRectangle(cornerRadius: 8, style: .continuous)
                     )
                 Text(budget.category?.name ?? "Unknown category")
-                    .font(.subheadline.weight(.medium))
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(FinTheme.ink)
                 Spacer()
                 Text("\(CurrencyFormatter.string(spent)) / \(CurrencyFormatter.string(budget.limit))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(FinTheme.ink400)
                     .monospacedDigit()
             }
-            ProgressView(value: min(fraction, 1))
-                .tint(isOver ? .red : (fraction > 0.85 ? .orange : Color(hex: budget.category?.colorHex ?? "#4F8EF7")))
+            Capsule()
+                .fill(FinTheme.paperInset)
+                .frame(height: 8)
+                .overlay(alignment: .leading) {
+                    GeometryReader { proxy in
+                        Capsule()
+                            .fill(fillColor)
+                            .frame(width: max(proxy.size.width * min(fraction, 1), fraction > 0 ? 8 : 0))
+                    }
+                }
                 .animation(.smooth(duration: 0.6), value: fraction)
             if isOver {
                 Text("Over by \(CurrencyFormatter.string(spent - budget.limit))")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.red)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(FinTheme.red)
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 8)
         .animation(.smooth(duration: 0.4), value: isOver)
     }
 }

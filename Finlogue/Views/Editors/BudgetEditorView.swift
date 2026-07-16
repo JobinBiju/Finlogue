@@ -55,6 +55,9 @@ struct BudgetEditorView: View {
             }
             .navigationTitle(budget == nil ? "New Budget" : "Edit Budget")
             .navigationBarTitleDisplayMode(.inline)
+            .scrollContentBackground(.hidden)
+            .background(FinTheme.canvas)
+            .fontDesign(.rounded)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

@@ -26,6 +26,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
+                headerSection
                 currencySection
                 accountsSection
                 categoriesSection
@@ -33,24 +34,46 @@ struct SettingsView: View {
                 syncSection
             }
             .listStyle(.insetGrouped)
-            .listSectionSpacing(16)
-            .navigationTitle("Settings")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        PhoneSyncEngine.shared.pushSnapshot()
-                    } label: {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                    }
-                    .accessibilityLabel("Sync with Watch now")
-                }
-            }
+            .listSectionSpacing(20)
+            .scrollContentBackground(.hidden)
+            .background(FinTheme.canvas)
+            .contentMargins(.bottom, 88, for: .scrollContent)
+            .contentMargins(.horizontal, 24, for: .scrollContent)
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showAddAccount) { AccountEditorView() }
             .sheet(item: $editingAccount) { AccountEditorView(account: $0) }
             .sheet(isPresented: $showAddCategory) { CategoryEditorView() }
             .sheet(item: $editingCategory) { CategoryEditorView(category: $0) }
             .sheet(isPresented: $showAddRule) { RecurringRuleEditorView() }
             .sheet(item: $editingRule) { RecurringRuleEditorView(rule: $0) }
+        }
+    }
+
+    private var headerSection: some View {
+        Section {
+        } header: {
+            HStack {
+                Text("Settings")
+                    .font(.system(size: 26, weight: .heavy))
+                    .kerning(-0.5)
+                    .foregroundStyle(FinTheme.ink)
+                Spacer()
+                Button {
+                    PhoneSyncEngine.shared.pushSnapshot()
+                } label: {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(FinTheme.ink)
+                        .frame(width: 44, height: 44)
+                        .background(FinTheme.paper, in: Circle())
+                        .shadow(color: FinTheme.shadowTint.opacity(0.06), radius: 4, x: 0, y: 2)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Sync with Watch now")
+            }
+            .textCase(nil)
+            .finHeaderAligned()
+            .padding(.top, 8)
         }
     }
 
@@ -61,16 +84,17 @@ struct SettingsView: View {
                     Text("\(code) (\(CurrencyFormatter.symbol(code: code)))").tag(code)
                 }
             }
+            .font(.system(size: 15, weight: .medium))
             .onChange(of: currencyCode) {
                 store.persist()
             }
+            .listRowBackground(FinTheme.paper)
         } header: {
             SectionHeader("Display currency")
         }
     }
 
-    /// One real list section per account group, so separators and card
-    /// boundaries come from the system instead of fake in-card label rows.
+    /// One real list section per account group.
     @ViewBuilder
     private var accountsSection: some View {
         ForEach(accounts.grouped, id: \.group) { entry in
@@ -87,31 +111,44 @@ struct SettingsView: View {
                 showAddAccount = true
             } label: {
                 Label("Add account", systemImage: "plus")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(FinTheme.coral)
             }
+            .listRowBackground(FinTheme.paper)
         } footer: {
             Text("Deleting an account also deletes its transactions.")
+                .font(.system(size: 12))
+                .foregroundStyle(FinTheme.ink400)
         }
     }
 
     private func accountRow(_ account: Account) -> some View {
         HStack(spacing: 12) {
             Image(systemName: account.type.symbol)
-                .font(.system(size: 16))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 17))
+                .foregroundStyle(FinTheme.ink600)
                 .frame(width: 28)
             Text(account.name)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(FinTheme.ink)
             Spacer()
             if account.type == .creditCard {
                 Text(CurrencyFormatter.string(account.spent))
-                    .foregroundStyle(account.spent > 0 ? .red : .secondary)
+                    .font(.system(size: 15, weight: .semibold))
+                    .kerning(-0.3)
+                    .foregroundStyle(account.spent > 0 ? FinTheme.red : FinTheme.ink400)
                     .monospacedDigit()
             } else {
                 Text(CurrencyFormatter.string(account.currentBalance))
-                    .foregroundStyle(account.currentBalance >= 0 ? .green : .red)
+                    .font(.system(size: 15, weight: .semibold))
+                    .kerning(-0.3)
+                    .foregroundStyle(account.currentBalance >= 0 ? FinTheme.green : FinTheme.red)
                     .monospacedDigit()
             }
         }
         .padding(.vertical, 4)
+        .listRowBackground(FinTheme.paper)
+        .listRowSeparatorTint(FinTheme.lineSoft)
         .contentShape(Rectangle())
         .onTapGesture { editingAccount = account }
         .swipeActions(edge: .trailing) {
@@ -126,18 +163,26 @@ struct SettingsView: View {
     private var categoriesSection: some View {
         Section {
             ForEach(categories) { category in
-                HStack {
+                HStack(spacing: 12) {
                     Image(systemName: category.symbol)
-                        .font(.caption)
+                        .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(.white)
                         .frame(width: 28, height: 28)
-                        .background(Color(hex: category.colorHex), in: RoundedRectangle(cornerRadius: 8))
+                        .background(
+                            Color(hex: category.colorHex),
+                            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        )
                     Text(category.name)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(FinTheme.ink)
                     Spacer()
                     Text(category.type.label)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 12))
+                        .foregroundStyle(FinTheme.ink400)
                 }
+                .padding(.vertical, 2)
+                .listRowBackground(FinTheme.paper)
+                .listRowSeparatorTint(FinTheme.lineSoft)
                 .contentShape(Rectangle())
                 .onTapGesture { editingCategory = category }
                 .swipeActions(edge: .trailing) {
@@ -152,7 +197,10 @@ struct SettingsView: View {
                 showAddCategory = true
             } label: {
                 Label("Add category", systemImage: "plus")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(FinTheme.coral)
             }
+            .listRowBackground(FinTheme.paper)
         } header: {
             SectionHeader("Categories")
         }
@@ -164,6 +212,8 @@ struct SettingsView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(rule.name)
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(FinTheme.ink)
                         HStack(spacing: 4) {
                             Text(rule.frequency.label)
                             if let remaining = rule.remainingInstallments {
@@ -173,14 +223,18 @@ struct SettingsView: View {
                                 Text("· Finished")
                             }
                         }
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 12))
+                        .foregroundStyle(FinTheme.ink400)
                     }
                     Spacer()
                     Text(CurrencyFormatter.string(rule.amount))
+                        .font(.system(size: 15, weight: .semibold))
+                        .kerning(-0.3)
                         .monospacedDigit()
-                        .foregroundStyle(rule.isActive ? .primary : .secondary)
+                        .foregroundStyle(rule.isActive ? FinTheme.ink : FinTheme.ink400)
                 }
+                .listRowBackground(FinTheme.paper)
+                .listRowSeparatorTint(FinTheme.lineSoft)
                 .contentShape(Rectangle())
                 .onTapGesture { editingRule = rule }
                 .swipeActions(edge: .trailing) {
@@ -195,11 +249,16 @@ struct SettingsView: View {
                 showAddRule = true
             } label: {
                 Label("Add recurring payment", systemImage: "plus")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(FinTheme.coral)
             }
+            .listRowBackground(FinTheme.paper)
         } header: {
             SectionHeader("Recurring payments & mandates")
         } footer: {
             Text("Subscriptions, EMIs and loan auto-pay. Due payments are logged when you open the app.")
+                .font(.system(size: 12))
+                .foregroundStyle(FinTheme.ink400)
         }
     }
 
@@ -208,15 +267,29 @@ struct SettingsView: View {
             Button {
                 PhoneSyncEngine.shared.pushSnapshot()
             } label: {
-                Label("Sync with Watch now", systemImage: "applewatch")
+                HStack(spacing: 12) {
+                    Image(systemName: "applewatch")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(FinTheme.green)
+                        .frame(width: 34, height: 34)
+                        .background(FinTheme.tintLime, in: Circle())
+                    Text("Sync with Watch now")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(FinTheme.coral)
+                }
             }
+            .listRowBackground(FinTheme.paper)
         } header: {
             SectionHeader("Apple Watch")
         } footer: {
             if let lastPush = syncEngine.lastPushDate {
                 Text("Last synced \(lastPush.formatted(.relative(presentation: .named)))")
+                    .font(.system(size: 12))
+                    .foregroundStyle(FinTheme.ink400)
             } else {
                 Text("Data syncs automatically whenever it changes.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(FinTheme.ink400)
             }
         }
     }

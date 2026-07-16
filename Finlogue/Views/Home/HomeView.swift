@@ -14,7 +14,19 @@ struct HomeView: View {
     @Query(sort: \Account.createdAt) private var accounts: [Account]
     @Query private var recurringRules: [RecurringRule]
 
-    @State private var searchText = ""
+    @State private var searchText = Self.initialSearchText
+
+    /// Test hook: `-searchText <query>` pre-fills the home search field.
+    private static var initialSearchText: String {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        if let index = arguments.firstIndex(of: "-searchText"),
+           arguments.indices.contains(index + 1) {
+            return arguments[index + 1]
+        }
+        #endif
+        return ""
+    }
     @State private var filter = TransactionFilter()
     @State private var showFilter = false
     @State private var editingTransaction: Transaction?
@@ -57,6 +69,14 @@ struct HomeView: View {
         monthTransactions.filter { $0.type == .expense }.reduce(0) { $0 + $1.amount }
     }
 
+    /// Net-worth movement this month, as a percentage of where the month started.
+    private var monthTrendPercent: Double? {
+        let change = monthIncome - monthExpense
+        let base = netWorth - change
+        guard base > 0, change != 0 else { return nil }
+        return change / base * 100
+    }
+
     private var visibleTransactions: [Transaction] {
         transactions.filter { transaction in
             guard filter.matches(transaction) else { return false }
@@ -79,40 +99,30 @@ struct HomeView: View {
         RecurringEngine.upcomingRules(in: context)
     }
 
+    /// While searching, everything above the transaction list gets out of the way.
+    private var isSearching: Bool {
+        !searchText.isEmpty
+    }
+
     var body: some View {
         NavigationStack {
             List {
-                summarySection
-                if !accounts.isEmpty { accountsSection }
-                if !upcoming.isEmpty { upcomingSection }
+                headerSection
+                if !isSearching {
+                    summarySection
+                    if !accounts.isEmpty { accountsSection }
+                    if !upcoming.isEmpty { upcomingSection }
+                }
                 transactionsSection
             }
             .listStyle(.insetGrouped)
             .listSectionSpacing(16)
+            .scrollContentBackground(.hidden)
+            .background(FinTheme.canvas)
+            .contentMargins(.bottom, 88, for: .scrollContent)
+            .contentMargins(.horizontal, 24, for: .scrollContent)
             .animation(.smooth(duration: 0.4), value: visibleTransactions.map(\.id))
-            .navigationTitle(greeting)
-            .searchable(text: $searchText, prompt: "Search transactions")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        showFilter = true
-                    } label: {
-                        Image(systemName: filter.isActive
-                              ? "line.3.horizontal.decrease.circle.fill"
-                              : "line.3.horizontal.decrease.circle")
-                            .contentTransition(.symbolEffect(.replace))
-                            .animation(.snappy, value: filter.isActive)
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showAddTransaction = true
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title3)
-                    }
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showAddTransaction) {
                 TransactionEditorView()
             }
@@ -125,68 +135,183 @@ struct HomeView: View {
         }
     }
 
-    private var summarySection: some View {
+    // MARK: Header (greeting + actions + search + net worth)
+
+    private var headerSection: some View {
         Section {
-            VStack(alignment: .leading, spacing: 12) {
+        } header: {
+            VStack(spacing: 20) {
+                HStack {
+                    Button {
+                        showFilter = true
+                    } label: {
+                        Image(systemName: filter.isActive
+                              ? "line.3.horizontal.decrease.circle.fill"
+                              : "slider.horizontal.3")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(filter.isActive ? FinTheme.coral : FinTheme.ink)
+                            .frame(width: 44, height: 44)
+                            .background(FinTheme.paper, in: Circle())
+                            .shadow(color: FinTheme.shadowTint.opacity(0.06), radius: 4, x: 0, y: 2)
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer()
+
+                    VStack(spacing: 3) {
+                        Text(greeting)
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundStyle(FinTheme.ink)
+                        Text(Date.now.formatted(.dateTime.weekday(.wide).day().month(.wide)))
+                            .font(.system(size: 12))
+                            .foregroundStyle(FinTheme.ink400)
+                    }
+
+                    Spacer()
+
+                    Button {
+                        showAddTransaction = true
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 44, height: 44)
+                            .background(FinTheme.coral, in: Circle())
+                            .shadow(color: FinTheme.coral.opacity(0.28), radius: 12, x: 0, y: 8)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(FinTheme.ink400)
+                    TextField("Search transactions", text: $searchText)
+                        .font(.system(size: 15))
+                        .foregroundStyle(FinTheme.ink)
+                    if !searchText.isEmpty {
+                        Button {
+                            searchText = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(FinTheme.ink400)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .frame(height: 44)
+                .background(FinTheme.paper, in: Capsule())
+                .shadow(color: FinTheme.shadowTint.opacity(0.05), radius: 4, x: 0, y: 2)
+
+                if !isSearching {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Net worth")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Text("Balance")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(FinTheme.ink400)
                     Text(CurrencyFormatter.string(netWorth))
-                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .font(.system(size: 40, weight: .heavy))
+                        .kerning(-0.5)
+                        .foregroundStyle(FinTheme.ink)
                         .monospacedDigit()
                         .contentTransition(.numericText())
                         .animation(.smooth(duration: 0.5), value: netWorth)
+                    if let trend = monthTrendPercent {
+                        HStack(spacing: 6) {
+                            HStack(spacing: 3) {
+                                Image(systemName: trend >= 0
+                                      ? "chart.line.uptrend.xyaxis"
+                                      : "chart.line.downtrend.xyaxis")
+                                    .font(.system(size: 12, weight: .semibold))
+                                Text("\(trend >= 0 ? "+" : "")\(trend, specifier: "%.1f")%")
+                                    .font(.system(size: 13, weight: .semibold))
+                            }
+                            .foregroundStyle(trend >= 0 ? FinTheme.green : FinTheme.red)
+                            Text("this month")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(FinTheme.ink600)
+                        }
+                        .padding(.top, 2)
+                    }
                 }
-                HStack(spacing: 12) {
-                    summaryChip(
-                        title: "Income", amount: monthIncome,
-                        symbol: "arrow.down.circle.fill", tint: .green
-                    )
-                    summaryChip(
-                        title: "Spent", amount: monthExpense,
-                        symbol: "arrow.up.circle.fill", tint: .red
-                    )
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .transition(.opacity)
                 }
             }
-            .padding(.vertical, 4)
-        } footer: {
-            Text("Income and spent are for \(Date.now.formatted(.dateTime.month(.wide)))")
+            .animation(.smooth(duration: 0.3), value: isSearching)
+            .textCase(nil)
+            .finHeaderAligned()
+            .padding(.top, 4)
         }
     }
 
-    private func summaryChip(title: String, amount: Double, symbol: String, tint: Color) -> some View {
-        HStack(spacing: 8) {
+    // MARK: Income / Spent tiles
+
+    private var summarySection: some View {
+        Section {
+        } header: {
+            HStack(spacing: 14) {
+                summaryTile(
+                    title: "Income", amount: monthIncome,
+                    symbol: "arrow.down.left", chipBackground: FinTheme.lime100,
+                    chipForeground: FinTheme.green
+                )
+                summaryTile(
+                    title: "Spent", amount: monthExpense,
+                    symbol: "arrow.up.right", chipBackground: FinTheme.tintPeach,
+                    chipForeground: FinTheme.coral
+                )
+            }
+            .textCase(nil)
+            .finHeaderAligned()
+        }
+    }
+
+    private func summaryTile(
+        title: String, amount: Double, symbol: String,
+        chipBackground: Color, chipForeground: Color
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
             Image(systemName: symbol)
-                .foregroundStyle(tint)
-            VStack(alignment: .leading, spacing: 0) {
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(chipForeground)
+                .frame(width: 40, height: 40)
+                .background(chipBackground, in: Circle())
+            VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(FinTheme.ink400)
                 Text(CurrencyFormatter.string(amount))
-                    .font(.subheadline.weight(.semibold))
+                    .font(.system(size: 22, weight: .bold))
+                    .kerning(-0.4)
+                    .foregroundStyle(FinTheme.ink)
                     .monospacedDigit()
                     .contentTransition(.numericText())
                     .animation(.smooth(duration: 0.5), value: amount)
+                    .minimumScaleFactor(0.7)
+                    .lineLimit(1)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(tint.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .finCard()
     }
 
-    // The carousel lives in the section HEADER: inset-grouped rows apply a
-    // rounded-corner mask that clips cards mid-scroll; headers don't.
+    // MARK: Accounts carousel
+
     private var accountsSection: some View {
         Section {
         } header: {
-            VStack(alignment: .leading, spacing: 8) {
-                SectionHeader("Accounts")
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Accounts")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(FinTheme.ink)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
                         // Banks first, then cards, then others.
-                        ForEach(accounts.grouped.flatMap(\.accounts)) { account in
-                            AccountCardView(account: account)
+                        ForEach(Array(accounts.grouped.flatMap(\.accounts).enumerated()),
+                                id: \.element.id) { index, account in
+                            AccountCardView(account: account, paletteIndex: index)
                         }
                     }
                     .scrollTargetLayout()
@@ -195,42 +320,70 @@ struct HomeView: View {
                 .scrollTargetBehavior(.viewAligned)
                 .scrollClipDisabled()
             }
+            .textCase(nil)
+            .finHeaderAligned()
         }
     }
+
+    // MARK: Upcoming payments
 
     private var upcomingSection: some View {
         Section {
             ForEach(upcoming, id: \.rule.id) { entry in
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 12) {
+                    Image(systemName: entry.rule.category?.symbol ?? "calendar")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(FinTheme.amber500)
+                        .frame(width: 44, height: 44)
+                        .background(FinTheme.tintAmber, in: Circle())
+                    VStack(alignment: .leading, spacing: 3) {
                         Text(entry.rule.name)
-                            .font(.subheadline.weight(.medium))
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(FinTheme.ink)
                         HStack(spacing: 4) {
                             Text(entry.dueDate.formatted(.dateTime.day().month(.abbreviated)))
                             if let remaining = entry.rule.remainingInstallments {
                                 Text("· \(remaining) left")
                             }
                         }
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 12))
+                        .foregroundStyle(FinTheme.ink400)
                     }
                     Spacer()
                     Text(CurrencyFormatter.string(entry.rule.amount))
-                        .font(.subheadline.weight(.semibold))
+                        .font(.system(size: 15, weight: .bold))
+                        .kerning(-0.3)
+                        .foregroundStyle(FinTheme.ink)
                         .monospacedDigit()
                     if !entry.rule.autoPost && entry.dueDate <= .now {
-                        Button("Pay") {
+                        Button {
                             store.postOccurrence(of: entry.rule, on: entry.dueDate)
+                        } label: {
+                            Text("Pay")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 16)
+                                .frame(height: 34)
+                                .background(FinTheme.coral, in: Capsule())
                         }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
+                        .buttonStyle(.plain)
                     }
                 }
+                .padding(.vertical, 4)
+                .listRowBackground(FinTheme.paper)
+                .listRowSeparatorTint(FinTheme.lineSoft)
             }
         } header: {
-            SectionHeader("Upcoming payments")
+            Text("Upcoming payments")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(FinTheme.ink)
+                .textCase(nil)
+                .finHeaderAligned()
+                .padding(.bottom, 4)
         }
     }
+
+    // MARK: Transactions
 
     @ViewBuilder
     private var transactionsSection: some View {
@@ -245,12 +398,15 @@ struct HomeView: View {
                         : "Try changing your search or filters."
                     )
                 )
+                .listRowBackground(Color.clear)
             }
         } else {
             ForEach(groupedTransactions, id: \.day) { group in
                 Section {
                     ForEach(group.items) { transaction in
                         TransactionRowView(transaction: transaction)
+                            .listRowBackground(FinTheme.paper)
+                            .listRowSeparatorTint(FinTheme.lineSoft)
                             .contentShape(Rectangle())
                             .onTapGesture { editingTransaction = transaction }
                             .swipeActions(edge: .trailing) {

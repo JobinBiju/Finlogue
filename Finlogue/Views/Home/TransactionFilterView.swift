@@ -96,6 +96,9 @@ struct TransactionFilterView: View {
             }
             .navigationTitle("Filter")
             .navigationBarTitleDisplayMode(.inline)
+            .scrollContentBackground(.hidden)
+            .background(FinTheme.canvas)
+            .fontDesign(.rounded)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
