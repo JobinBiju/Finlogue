@@ -19,11 +19,21 @@ struct SettingsView: View {
     @State private var editingRule: RecurringRule?
     @State private var showAddRule = Self.launchIntoAddRule
     @State private var pushAccounts = Self.launchIntoAccounts
+    @State private var pushCategories = Self.launchIntoCategories
 
     /// Test hook: `-openAccounts` pushes the Accounts screen on launch.
     private static var launchIntoAccounts: Bool {
         #if DEBUG
         return ProcessInfo.processInfo.arguments.contains("-openAccounts")
+        #else
+        return false
+        #endif
+    }
+
+    /// Test hook: `-openCategories` pushes the Categories screen on launch.
+    private static var launchIntoCategories: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("-openCategories")
         #else
         return false
         #endif
@@ -56,6 +66,9 @@ struct SettingsView: View {
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(isPresented: $pushAccounts) {
                 AccountsSettingsView()
+            }
+            .navigationDestination(isPresented: $pushCategories) {
+                CategoriesSettingsView()
             }
             .sheet(isPresented: $showAddRule) { RecurringRuleEditorView() }
             .sheet(item: $editingRule) { RecurringRuleEditorView(rule: $0) }

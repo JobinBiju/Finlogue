@@ -16,6 +16,18 @@ final class Category {
     var sortOrder: Int
     var updatedAt: Date
 
+    /// Everything that references this category. Declaring the inverses here
+    /// lets SwiftData nullify them on delete — without them, deleting a
+    /// category leaves dangling references whose reads crash.
+    @Relationship(deleteRule: .nullify, inverse: \Transaction.category)
+    var transactions: [Transaction]? = []
+
+    @Relationship(deleteRule: .nullify, inverse: \Budget.category)
+    var budgets: [Budget]? = []
+
+    @Relationship(deleteRule: .nullify, inverse: \RecurringRule.category)
+    var recurringRules: [RecurringRule]? = []
+
     init(
         id: UUID = UUID(),
         name: String,

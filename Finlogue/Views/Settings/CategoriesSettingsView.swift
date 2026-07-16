@@ -16,7 +16,16 @@ struct CategoriesSettingsView: View {
     @Query(sort: \Category.sortOrder) private var categories: [Category]
 
     @State private var editingCategory: Category?
-    @State private var showAddCategory = false
+    @State private var showAddCategory = Self.launchIntoAddCategory
+
+    /// Test hook: `-showAddCategory` opens the category editor on launch.
+    private static var launchIntoAddCategory: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("-showAddCategory")
+        #else
+        return false
+        #endif
+    }
 
     var body: some View {
         List {

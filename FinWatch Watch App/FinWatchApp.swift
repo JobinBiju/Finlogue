@@ -16,7 +16,7 @@ struct FinWatchApp: App {
         let schema = Schema([
             Transaction.self, Account.self, Category.self, Budget.self, RecurringRule.self,
         ])
-        let configuration = ModelConfiguration("Finlogue-v2", schema: schema)
+        let configuration = ModelConfiguration("Finlogue-v3", schema: schema)
         do {
             container = try ModelContainer(for: schema, configurations: [configuration])
         } catch {

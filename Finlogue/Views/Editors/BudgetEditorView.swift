@@ -60,7 +60,7 @@ struct BudgetEditorView: View {
             .buttonStyle(.plain)
             .padding(.horizontal, 20)
             .padding(.top, 8)
-            .padding(.bottom, 16)
+            .padding(.bottom, 32)
 
             ScrollView {
                 VStack(spacing: 24) {

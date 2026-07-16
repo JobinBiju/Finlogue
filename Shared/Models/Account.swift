@@ -28,6 +28,16 @@ final class Account {
     @Relationship(deleteRule: .nullify, inverse: \Transaction.toAccount)
     var incomingTransfers: [Transaction]? = []
 
+    /// Recurring rules that pay *from* this account. Declaring the inverse
+    /// here lets SwiftData nullify these on delete — without it, deleting the
+    /// account leaves rules pointing at a missing row and reads crash.
+    @Relationship(deleteRule: .nullify, inverse: \RecurringRule.account)
+    var recurringRules: [RecurringRule]? = []
+
+    /// Recurring transfers that pay *into* this account.
+    @Relationship(deleteRule: .nullify, inverse: \RecurringRule.toAccount)
+    var incomingRecurringTransfers: [RecurringRule]? = []
+
     init(
         id: UUID = UUID(),
         name: String,

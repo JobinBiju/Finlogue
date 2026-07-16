@@ -50,10 +50,10 @@ struct AccountEditorView: View {
             .buttonStyle(.plain)
             .padding(.horizontal, 20)
             .padding(.top, 8)
-            .padding(.bottom, 16)
+            .padding(.bottom, 32)
 
             ScrollView {
-                VStack(spacing: 24) {
+                VStack(spacing: 20) {
                     nameEntry
                     typeSegments
                     if type == .creditCard {
@@ -100,15 +100,15 @@ struct AccountEditorView: View {
                         type = candidate
                     }
                 } label: {
-                    HStack(spacing: 5) {
+                    HStack(spacing: 4) {
                         Image(systemName: candidate.symbol)
                             .font(.system(size: 12, weight: .semibold))
                         Text(candidate.label)
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: 14, weight: .semibold))
                     }
                     .foregroundStyle(type == candidate ? .white : FinTheme.ink400)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 38)
+                    .frame(height: 40)
                     .background {
                         if type == candidate {
                             Capsule()
@@ -120,7 +120,7 @@ struct AccountEditorView: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(3)
+        .padding(4)
         .background(FinTheme.paper, in: Capsule())
     }
 
@@ -128,6 +128,7 @@ struct AccountEditorView: View {
         labeledCard("Starting balance") {
             amountRow(label: "Opening balance", text: $openingBalanceText)
         }
+        .padding(.top, 12)
     }
 
     private var creditCardCard: some View {
@@ -139,7 +140,7 @@ struct AccountEditorView: View {
                 Divider().overlay(FinTheme.lineSoft)
                 HStack {
                     Text("Statement day")
-                        .font(.system(size: 15, weight: .medium))
+                        .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(FinTheme.ink600)
                     Spacer()
                     Menu {
@@ -150,7 +151,7 @@ struct AccountEditorView: View {
                     } label: {
                         HStack(spacing: 6) {
                             Text(statementDay.map { "\($0)" } ?? "Not set")
-                                .font(.system(size: 15, weight: .semibold))
+                                .font(.system(size: 14, weight: .semibold))
                                 .foregroundStyle(FinTheme.ink)
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 12, weight: .semibold))
@@ -167,6 +168,7 @@ struct AccountEditorView: View {
                 .foregroundStyle(FinTheme.ink400)
                 .padding(.leading, 4)
         }
+        .padding(.top, 12)
     }
 
     private func amountRow(label: String, text: Binding<String>) -> some View {

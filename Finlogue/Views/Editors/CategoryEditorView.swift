@@ -61,10 +61,10 @@ struct CategoryEditorView: View {
             .buttonStyle(.plain)
             .padding(.horizontal, 20)
             .padding(.top, 8)
-            .padding(.bottom, 16)
+            .padding(.bottom, 32)
 
             ScrollView {
-                VStack(spacing: 24) {
+                VStack(spacing: 20) {
                     nameEntry
                     typeSegments
                     iconCard
@@ -95,23 +95,25 @@ struct CategoryEditorView: View {
     // MARK: Pieces
 
     private var nameEntry: some View {
-        HStack(spacing: 12) {
+        VStack(spacing: 16) {
             Image(systemName: symbol)
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(size: 28, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: 34, height: 34)
+                .frame(width: 64, height: 64)
                 .background(
                     Color(hex: colorHex),
-                    in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    in: RoundedRectangle(cornerRadius: 18, style: .continuous)
                 )
+
             TextField("Category name", text: $name)
                 .font(.system(size: 16, weight: .medium))
                 .foregroundStyle(FinTheme.ink)
+                .multilineTextAlignment(.center)
+                .padding(.vertical, 16)
+                .padding(.horizontal, 16)
+                .frame(maxWidth: .infinity)
+                .finCard(radius: 16)
         }
-        .padding(.vertical, 11)
-        .padding(.horizontal, 16)
-        .frame(maxWidth: .infinity)
-        .finCard(radius: 16)
     }
 
     private var typeSegments: some View {
@@ -127,7 +129,7 @@ struct CategoryEditorView: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(type == candidate ? .white : FinTheme.ink400)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 38)
+                        .frame(height: 44)
                         .background {
                             if type == candidate {
                                 Capsule()
@@ -139,7 +141,7 @@ struct CategoryEditorView: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(3)
+        .padding(4)
         .background(FinTheme.paper, in: Capsule())
     }
 
@@ -152,8 +154,8 @@ struct CategoryEditorView: View {
                         symbol = candidate
                     } label: {
                         Image(systemName: candidate)
-                            .font(.system(size: 15, weight: .medium))
-                            .frame(width: 38, height: 38)
+                            .font(.system(size: 16, weight: .medium))
+                            .frame(width: 40, height: 40)
                             .background(
                                 symbol == candidate ? Color(hex: colorHex) : FinTheme.paperInset,
                                 in: RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -169,7 +171,7 @@ struct CategoryEditorView: View {
 
     private var colorCard: some View {
         labeledCard("Color") {
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 10) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 16) {
                 ForEach(Self.colors, id: \.self) { candidate in
                     Button {
                         FinHaptics.selection()
@@ -177,11 +179,11 @@ struct CategoryEditorView: View {
                     } label: {
                         Circle()
                             .fill(Color(hex: candidate))
-                            .frame(width: 34, height: 34)
+                            .frame(width: 32, height: 32)
                             .overlay {
                                 if colorHex == candidate {
                                     Image(systemName: "checkmark")
-                                        .font(.system(size: 13, weight: .bold))
+                                        .font(.system(size: 12, weight: .bold))
                                         .foregroundStyle(.white)
                                 }
                             }

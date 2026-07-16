@@ -18,7 +18,7 @@ struct FinlogueApp: App {
             Transaction.self, Account.self, Category.self, Budget.self, RecurringRule.self,
         ])
         let configuration = ModelConfiguration(
-            "Finlogue-v2",
+            "Finlogue-v3",
             schema: schema,
             groupContainer: .identifier("group.dev.jobin.finlogue")
         )
