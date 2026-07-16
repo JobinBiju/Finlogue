@@ -10,8 +10,14 @@
 
 import SwiftUI
 
+/// Shared switch that lets pushed sub-screens hide the floating tab bar.
+final class TabBarVisibility: ObservableObject {
+    @Published var isHidden = false
+}
+
 struct RootTabView: View {
     @State private var selection = initialTab
+    @StateObject private var tabBarVisibility = TabBarVisibility()
 
     /// Test hook: `-initialTab N` launch argument opens a specific tab.
     private static var initialTab: Int {
@@ -37,9 +43,14 @@ struct RootTabView: View {
             tabContent(3) { SettingsView() }
         }
         .overlay(alignment: .bottom) {
-            FinTabBar(selection: $selection)
-                .padding(.bottom, 4)
+            if !tabBarVisibility.isHidden {
+                FinTabBar(selection: $selection)
+                    .padding(.bottom, 4)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
+        .animation(.snappy(duration: 0.25), value: tabBarVisibility.isHidden)
+        .environmentObject(tabBarVisibility)
     }
 
     @ViewBuilder

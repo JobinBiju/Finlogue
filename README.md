@@ -79,8 +79,10 @@ A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI*
 
 - `-seedSampleData` — fills the store with two months of sample data (accounts, transactions, transfers, budgets, recurring rules).
 - `-initialTab <0-3>` — opens the iOS app on a specific tab.
-- `-showAddTransaction` — opens the New Transaction sheet on launch.
+- `-showAddTransaction` / `-showAddRule` — opens the New Transaction or Recurring Payment sheet on launch.
 - `-searchText <query>` — pre-fills the home search field.
+- `-openAccounts` — pushes the Accounts sub-screen from Settings.
+- `-insightsMonthOffset <±N>` — opens Insights N months from the current one.
 - `-autoAddTestTransaction` (watch) — simulates a quick-add and syncs it to the phone.
 - `-watchQuickAdd` / `-watchTransactions` (watch) — opens the quick-add flow or transaction list directly.
 - `-quickAddAccountStep` (watch) — opens the quick-add flow directly on the account step.

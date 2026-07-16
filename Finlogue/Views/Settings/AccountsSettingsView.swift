@@ -10,6 +10,7 @@ import SwiftData
 
 struct AccountsSettingsView: View {
     @EnvironmentObject private var store: TransactionStore
+    @EnvironmentObject private var tabBarVisibility: TabBarVisibility
     @Environment(\.dismiss) private var dismiss
 
     @Query(sort: \Account.createdAt) private var accounts: [Account]
@@ -41,8 +42,10 @@ struct AccountsSettingsView: View {
         .scrollContentBackground(.hidden)
         .background(FinTheme.canvas)
         .contentMargins(.horizontal, 24, for: .scrollContent)
-        .contentMargins(.bottom, 88, for: .scrollContent)
+        .contentMargins(.bottom, 24, for: .scrollContent)
         .toolbar(.hidden, for: .navigationBar)
+        .onAppear { tabBarVisibility.isHidden = true }
+        .onDisappear { tabBarVisibility.isHidden = false }
         .sheet(isPresented: $showAddAccount) { AccountEditorView() }
         .sheet(item: $editingAccount) { AccountEditorView(account: $0) }
     }

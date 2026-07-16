@@ -13,7 +13,21 @@ struct InsightsView: View {
     // Only used to trigger recomputation when data changes.
     @Query private var transactions: [Transaction]
 
-    @State private var selectedMonth = Date.now
+    @State private var selectedMonth = Self.initialMonth
+
+    /// Test hook: `-insightsMonthOffset -N` opens N months back.
+    private static var initialMonth: Date {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        if let index = arguments.firstIndex(of: "-insightsMonthOffset"),
+           arguments.indices.contains(index + 1),
+           let offset = Int(arguments[index + 1]),
+           let month = Calendar.current.date(byAdding: .month, value: offset, to: .now) {
+            return month
+        }
+        #endif
+        return .now
+    }
 
     private var calendar: Calendar { .current }
 
@@ -54,8 +68,8 @@ struct InsightsView: View {
                 } else {
                     categoryBreakdownSection
                     trendSection
+                    incomeExpenseSection
                 }
-                incomeExpenseSection
             }
             .listStyle(.insetGrouped)
             .listSectionSpacing(20)
@@ -153,9 +167,14 @@ struct InsightsView: View {
                             .kerning(-0.5)
                             .foregroundStyle(FinTheme.ink)
                             .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.5)
                             .contentTransition(.numericText())
                             .animation(.smooth(duration: 0.5), value: monthExpenseTotal)
                     }
+                    // Keep the label inside the donut hole (0.64 inner ratio
+                    // of the 190pt chart, minus breathing room).
+                    .frame(maxWidth: 104)
                 }
 
                 // Rows keep their position across month changes; content

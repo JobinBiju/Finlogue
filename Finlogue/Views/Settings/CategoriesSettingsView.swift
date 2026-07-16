@@ -10,6 +10,7 @@ import SwiftData
 
 struct CategoriesSettingsView: View {
     @EnvironmentObject private var store: TransactionStore
+    @EnvironmentObject private var tabBarVisibility: TabBarVisibility
     @Environment(\.dismiss) private var dismiss
 
     @Query(sort: \Category.sortOrder) private var categories: [Category]
@@ -44,8 +45,10 @@ struct CategoriesSettingsView: View {
         .scrollContentBackground(.hidden)
         .background(FinTheme.canvas)
         .contentMargins(.horizontal, 24, for: .scrollContent)
-        .contentMargins(.bottom, 88, for: .scrollContent)
+        .contentMargins(.bottom, 24, for: .scrollContent)
         .toolbar(.hidden, for: .navigationBar)
+        .onAppear { tabBarVisibility.isHidden = true }
+        .onDisappear { tabBarVisibility.isHidden = false }
         .sheet(isPresented: $showAddCategory) { CategoryEditorView() }
         .sheet(item: $editingCategory) { CategoryEditorView(category: $0) }
     }

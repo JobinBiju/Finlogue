@@ -18,6 +18,16 @@ struct SettingsView: View {
 
     @State private var editingRule: RecurringRule?
     @State private var showAddRule = Self.launchIntoAddRule
+    @State private var pushAccounts = Self.launchIntoAccounts
+
+    /// Test hook: `-openAccounts` pushes the Accounts screen on launch.
+    private static var launchIntoAccounts: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("-openAccounts")
+        #else
+        return false
+        #endif
+    }
 
     /// Test hook: `-showAddRule` opens the recurring payment sheet on launch.
     private static var launchIntoAddRule: Bool {
@@ -44,6 +54,9 @@ struct SettingsView: View {
             .contentMargins(.bottom, 88, for: .scrollContent)
             .contentMargins(.horizontal, 24, for: .scrollContent)
             .toolbar(.hidden, for: .navigationBar)
+            .navigationDestination(isPresented: $pushAccounts) {
+                AccountsSettingsView()
+            }
             .sheet(isPresented: $showAddRule) { RecurringRuleEditorView() }
             .sheet(item: $editingRule) { RecurringRuleEditorView(rule: $0) }
         }

@@ -81,19 +81,25 @@ struct WatchHomeView: View {
             for: .navigation
         )
         .toolbar {
+            // Matched 38pt circles, per the design's watch home spec.
             ToolbarItemGroup(placement: .bottomBar) {
                 NavigationLink(destination: WatchTransactionListView()) {
                     Image(systemName: "list.bullet")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 38, height: 38)
+                        .background(.white.opacity(0.14), in: Circle())
                 }
+                .buttonStyle(.plain)
                 Spacer()
                 NavigationLink(destination: WatchQuickAddView()) {
                     Image(systemName: "plus")
+                        .font(.system(size: 19, weight: .semibold))
                         .foregroundStyle(.white)
+                        .frame(width: 38, height: 38)
+                        .background(FinTheme.coral, in: Circle())
                 }
-                .controlSize(.large)
-                .buttonStyle(.borderedProminent)
-                .tint(FinTheme.coral)
-                .clipShape(Circle())
+                .buttonStyle(.plain)
             }
         }
     }
