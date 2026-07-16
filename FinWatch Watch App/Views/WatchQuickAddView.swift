@@ -194,12 +194,7 @@ struct WatchQuickAddView: View {
                                     .font(.system(size: 12, weight: .semibold))
                                     .foregroundStyle(.white)
                                     .frame(width: 24, height: 24)
-                                    .background(
-                                        account.type == .creditCard
-                                            ? FinTheme.coral
-                                            : FinTheme.blue.opacity(0.85),
-                                        in: Circle()
-                                    )
+                                    .background(accountChipColor(for: account.type), in: Circle())
                                 Text(account.name)
                                     .font(.system(size: 14, weight: .medium))
                                     .lineLimit(1)
@@ -219,6 +214,14 @@ struct WatchQuickAddView: View {
             }
         }
         .navigationTitle("Account")
+    }
+
+    private func accountChipColor(for type: AccountType) -> Color {
+        switch type {
+        case .bank: FinTheme.blue.opacity(0.85)
+        case .creditCard: FinTheme.coral
+        case .cash: FinTheme.green
+        }
     }
 
     /// Last-used account first.

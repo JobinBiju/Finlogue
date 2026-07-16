@@ -16,20 +16,24 @@ struct SettingsView: View {
 
     @AppStorage(AppSettings.currencyCodeKey) private var currencyCode = AppSettings.defaultCurrencyCode
 
-    @State private var editingAccount: Account?
-    @State private var showAddAccount = false
-    @State private var editingCategory: Category?
-    @State private var showAddCategory = false
     @State private var editingRule: RecurringRule?
-    @State private var showAddRule = false
+    @State private var showAddRule = Self.launchIntoAddRule
+
+    /// Test hook: `-showAddRule` opens the recurring payment sheet on launch.
+    private static var launchIntoAddRule: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("-showAddRule")
+        #else
+        return false
+        #endif
+    }
 
     var body: some View {
         NavigationStack {
             List {
                 headerSection
                 currencySection
-                accountsSection
-                categoriesSection
+                manageSection
                 recurringSection
                 syncSection
             }
@@ -40,10 +44,6 @@ struct SettingsView: View {
             .contentMargins(.bottom, 88, for: .scrollContent)
             .contentMargins(.horizontal, 24, for: .scrollContent)
             .toolbar(.hidden, for: .navigationBar)
-            .sheet(isPresented: $showAddAccount) { AccountEditorView() }
-            .sheet(item: $editingAccount) { AccountEditorView(account: $0) }
-            .sheet(isPresented: $showAddCategory) { CategoryEditorView() }
-            .sheet(item: $editingCategory) { CategoryEditorView(category: $0) }
             .sheet(isPresented: $showAddRule) { RecurringRuleEditorView() }
             .sheet(item: $editingRule) { RecurringRuleEditorView(rule: $0) }
         }
@@ -95,120 +95,51 @@ struct SettingsView: View {
         }
     }
 
-    /// One real list section per account group.
-    @ViewBuilder
-    private var accountsSection: some View {
-        ForEach(accounts.grouped, id: \.group) { entry in
-            Section {
-                ForEach(entry.accounts) { account in
-                    accountRow(account)
-                }
-            } header: {
-                SectionHeader(entry.group.rawValue)
-            }
-        }
+    private var manageSection: some View {
         Section {
-            Button {
-                FinHaptics.tap()
-                showAddAccount = true
+            NavigationLink {
+                AccountsSettingsView()
             } label: {
-                Label("Add account", systemImage: "plus")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(FinTheme.coral)
+                manageRow(
+                    title: "Accounts",
+                    symbol: "building.columns",
+                    count: accounts.count
+                )
             }
             .listRowBackground(FinTheme.paper)
-        } footer: {
-            Text("Deleting an account also deletes its transactions.")
-                .font(.system(size: 12))
-                .foregroundStyle(FinTheme.ink400)
-        }
-    }
-
-    private func accountRow(_ account: Account) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: account.type.symbol)
-                .font(.system(size: 17))
-                .foregroundStyle(FinTheme.ink600)
-                .frame(width: 28)
-            Text(account.name)
-                .font(.system(size: 15, weight: .medium))
-                .foregroundStyle(FinTheme.ink)
-            Spacer()
-            if account.type == .creditCard {
-                Text(CurrencyFormatter.string(account.spent))
-                    .font(.system(size: 15, weight: .semibold))
-                    .kerning(-0.3)
-                    .foregroundStyle(account.spent > 0 ? FinTheme.red : FinTheme.ink400)
-                    .monospacedDigit()
-            } else {
-                Text(CurrencyFormatter.string(account.currentBalance))
-                    .font(.system(size: 15, weight: .semibold))
-                    .kerning(-0.3)
-                    .foregroundStyle(account.currentBalance >= 0 ? FinTheme.green : FinTheme.red)
-                    .monospacedDigit()
-            }
-        }
-        .padding(.vertical, 4)
-        .listRowBackground(FinTheme.paper)
-        .listRowSeparatorTint(FinTheme.lineSoft)
-        .contentShape(Rectangle())
-        .onTapGesture { editingAccount = account }
-        .swipeActions(edge: .trailing) {
-            Button(role: .destructive) {
-                FinHaptics.warning()
-                store.delete(account)
+            .listRowSeparatorTint(FinTheme.lineSoft)
+            NavigationLink {
+                CategoriesSettingsView()
             } label: {
-                Label("Delete", systemImage: "trash")
-            }
-        }
-    }
-
-    private var categoriesSection: some View {
-        Section {
-            ForEach(categories) { category in
-                HStack(spacing: 12) {
-                    Image(systemName: category.symbol)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 28, height: 28)
-                        .background(
-                            Color(hex: category.colorHex),
-                            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        )
-                    Text(category.name)
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(FinTheme.ink)
-                    Spacer()
-                    Text(category.type.label)
-                        .font(.system(size: 12))
-                        .foregroundStyle(FinTheme.ink400)
-                }
-                .padding(.vertical, 2)
-                .listRowBackground(FinTheme.paper)
-                .listRowSeparatorTint(FinTheme.lineSoft)
-                .contentShape(Rectangle())
-                .onTapGesture { editingCategory = category }
-                .swipeActions(edge: .trailing) {
-                    Button(role: .destructive) {
-                        FinHaptics.warning()
-                        store.delete(category)
-                    } label: {
-                        Label("Delete", systemImage: "trash")
-                    }
-                }
-            }
-            Button {
-                FinHaptics.tap()
-                showAddCategory = true
-            } label: {
-                Label("Add category", systemImage: "plus")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(FinTheme.coral)
+                manageRow(
+                    title: "Categories",
+                    symbol: "tag",
+                    count: categories.count
+                )
             }
             .listRowBackground(FinTheme.paper)
         } header: {
-            SectionHeader("Categories")
+            SectionHeader("Manage")
         }
+    }
+
+    private func manageRow(title: String, symbol: String, count: Int) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: symbol)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(FinTheme.ink600)
+                .frame(width: 34, height: 34)
+                .background(FinTheme.paperInset, in: Circle())
+            Text(title)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(FinTheme.ink)
+            Spacer()
+            Text("\(count)")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(FinTheme.ink400)
+                .monospacedDigit()
+        }
+        .padding(.vertical, 4)
     }
 
     private var recurringSection: some View {

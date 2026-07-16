@@ -109,7 +109,6 @@ struct HomeView: View {
             List {
                 headerSection
                 if !isSearching {
-                    summarySection
                     if !accounts.isEmpty { accountsSection }
                     if !upcoming.isEmpty { upcomingSection }
                 }
@@ -236,7 +235,23 @@ struct HomeView: View {
                         .padding(.top, 2)
                     }
                 }
+                .padding(20)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .finCard()
+                .transition(.opacity)
+
+                HStack(spacing: 14) {
+                    summaryTile(
+                        title: "Income", amount: monthIncome,
+                        symbol: "arrow.down.left", chipBackground: FinTheme.lime100,
+                        chipForeground: FinTheme.green
+                    )
+                    summaryTile(
+                        title: "Spent", amount: monthExpense,
+                        symbol: "arrow.up.right", chipBackground: FinTheme.tintPeach,
+                        chipForeground: FinTheme.coral
+                    )
+                }
                 .transition(.opacity)
                 }
             }
@@ -248,26 +263,6 @@ struct HomeView: View {
     }
 
     // MARK: Income / Spent tiles
-
-    private var summarySection: some View {
-        Section {
-        } header: {
-            HStack(spacing: 14) {
-                summaryTile(
-                    title: "Income", amount: monthIncome,
-                    symbol: "arrow.down.left", chipBackground: FinTheme.lime100,
-                    chipForeground: FinTheme.green
-                )
-                summaryTile(
-                    title: "Spent", amount: monthExpense,
-                    symbol: "arrow.up.right", chipBackground: FinTheme.tintPeach,
-                    chipForeground: FinTheme.coral
-                )
-            }
-            .textCase(nil)
-            .finHeaderAligned()
-        }
-    }
 
     private func summaryTile(
         title: String, amount: Double, symbol: String,

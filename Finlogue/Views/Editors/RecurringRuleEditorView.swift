@@ -2,6 +2,9 @@
 //  RecurringRuleEditorView.swift
 //  Finlogue
 //
+//  Design-system recurring payment sheet, matching the transaction editor:
+//  cream canvas, pill segments, big amount, paper detail cards.
+//
 
 import SwiftUI
 import SwiftData
@@ -31,8 +34,55 @@ struct RecurringRuleEditorView: View {
         categories.filter { $0.type == type }
     }
 
+    /// Locale-aware grouping for the amount field (e.g. 1,45,650 in en_IN).
+    private static let amountFormatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.locale = .current
+        formatter.usesGroupingSeparator = true
+        formatter.maximumFractionDigits = 2
+        return formatter
+    }()
+
+    private static func formattedAmountString(_ value: Double) -> String {
+        amountFormatter.string(from: NSNumber(value: value)) ?? String(format: "%g", value)
+    }
+
+    private var amount: Double? {
+        let groupSeparator = Locale.current.groupingSeparator ?? ","
+        let decimalSeparator = Locale.current.decimalSeparator ?? "."
+        let raw = amountText
+            .replacingOccurrences(of: groupSeparator, with: "")
+            .replacingOccurrences(of: decimalSeparator, with: ".")
+        return Double(raw)
+    }
+
+    /// Re-groups the typed amount live, preserving a partially typed fraction.
+    private func reformatAmount(_ text: String) {
+        let groupSeparator = Locale.current.groupingSeparator ?? ","
+        let decimalSeparator = Locale.current.decimalSeparator ?? "."
+        var raw = text.replacingOccurrences(of: groupSeparator, with: "")
+        raw = String(raw.filter { $0.isNumber || String($0) == decimalSeparator })
+
+        let parts = raw.components(separatedBy: decimalSeparator)
+        let integerPart = parts.first ?? ""
+        let hasSeparator = parts.count > 1
+        let fractionPart = String(parts.dropFirst().joined().prefix(2))
+
+        var result = integerPart
+        if !integerPart.isEmpty, let intValue = Double(integerPart) {
+            result = Self.formattedAmountString(intValue)
+        }
+        if hasSeparator {
+            result += decimalSeparator + fractionPart
+        }
+        if result != amountText {
+            amountText = result
+        }
+    }
+
     private var canSave: Bool {
-        guard let amount = Double(amountText), amount > 0 else { return false }
+        guard let amount, amount > 0 else { return false }
         if isLoan, Int(installmentsText) == nil { return false }
         if type == .transfer,
            selectedToAccountID == nil || selectedToAccountID == selectedAccountID {
@@ -42,105 +92,287 @@ struct RecurringRuleEditorView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    TextField("Name (e.g. Netflix, Car EMI, Card bill)", text: $name)
-                    HStack {
-                        Text(CurrencyFormatter.symbol())
-                            .foregroundStyle(.secondary)
-                        TextField("Amount", text: $amountText)
-                            .keyboardType(.decimalPad)
-                    }
-                    Picker("Type", selection: $type) {
-                        ForEach(TransactionType.allCases) { type in
-                            Text(type.label).tag(type)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .listRowSeparator(.hidden)
-                }
+        VStack(spacing: 0) {
+            Capsule()
+                .fill(FinTheme.line)
+                .frame(width: 38, height: 5)
+                .padding(.top, 10)
+                .padding(.bottom, 2)
 
-                Section("Schedule") {
-                    Picker("Repeats", selection: $frequency) {
-                        ForEach(RecurrenceFrequency.allCases) { frequency in
-                            Text(frequency.label).tag(frequency)
-                        }
-                    }
-                    DatePicker("First payment", selection: $startDate, displayedComponents: .date)
-                }
-
-                Section {
-                    Toggle("Fixed number of installments", isOn: $isLoan)
-                    if isLoan {
-                        TextField("Installments remaining", text: $installmentsText)
-                            .keyboardType(.numberPad)
-                    }
-                } header: {
-                    Text("Loan / EMI")
-                } footer: {
-                    Text("For loans and EMIs the mandate stops automatically after the last installment.")
-                }
-
-                Section {
-                    Picker(type == .transfer ? "From account" : "Account",
-                           selection: $selectedAccountID) {
-                        Text("None").tag(UUID?.none)
-                        ForEach(accounts.grouped, id: \.group) { entry in
-                            Section(entry.group.rawValue) {
-                                ForEach(entry.accounts) { account in
-                                    Text(account.name).tag(UUID?.some(account.id))
-                                }
-                            }
-                        }
-                    }
-                    if type == .transfer {
-                        Picker("To account", selection: $selectedToAccountID) {
-                            Text("Select account").tag(UUID?.none)
-                            ForEach(accounts.filter { $0.id != selectedAccountID }.grouped,
-                                    id: \.group) { entry in
-                                Section(entry.group.rawValue) {
-                                    ForEach(entry.accounts) { account in
-                                        Text(account.name).tag(UUID?.some(account.id))
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        Picker("Category", selection: $selectedCategoryID) {
-                            Text("None").tag(UUID?.none)
-                            ForEach(typeCategories) { category in
-                                Label(category.name, systemImage: category.symbol)
-                                    .tag(UUID?.some(category.id))
-                            }
-                        }
-                    }
-                    Toggle("Post automatically", isOn: $autoPost)
-                } header: {
-                    Text("Posting")
-                } footer: {
-                    Text(autoPost
-                         ? "Payments are logged automatically when due."
-                         : "You'll get an Upcoming reminder and confirm each payment.")
-                }
+            HStack {
+                Button("Cancel") { dismiss() }
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(FinTheme.ink600)
+                Spacer()
+                Text(rule == nil ? "New recurring payment" : "Edit recurring payment")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(FinTheme.ink)
+                Spacer()
+                Button("Save") { save() }
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(canSave ? FinTheme.coral : FinTheme.ink400)
+                    .disabled(!canSave)
             }
-            .navigationTitle(rule == nil ? "New Recurring Payment" : "Edit Recurring Payment")
-            .navigationBarTitleDisplayMode(.inline)
-            .scrollContentBackground(.hidden)
-            .background(FinTheme.canvas)
-            .fontDesign(.rounded)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 20)
+            .padding(.top, 8)
+            .padding(.bottom, 16)
+
+            ScrollView {
+                VStack(spacing: 24) {
+                    amountEntry
+                    nameEntry
+                    typeSegments
+                    scheduleCard
+                    loanCard
+                    postingCard
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { save() }
-                        .disabled(!canSave)
-                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
             }
-            .onAppear(perform: populate)
+            .scrollDismissesKeyboard(.interactively)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                UIApplication.shared.sendAction(
+                    #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
+                )
+            }
+        }
+        .background(FinTheme.canvas)
+        .fontDesign(.rounded)
+        .onAppear(perform: populate)
+        .onChange(of: type) { _, newType in
+            if let id = selectedCategoryID,
+               categories.first(where: { $0.id == id })?.type != newType {
+                selectedCategoryID = nil
+            }
+            if newType == .transfer {
+                selectedCategoryID = nil
+            } else {
+                selectedToAccountID = nil
+            }
         }
     }
+
+    // MARK: Pieces
+
+    private var amountEntry: some View {
+        HStack(alignment: .center, spacing: 4) {
+            Text(CurrencyFormatter.symbol())
+                .font(.system(size: 32, weight: .medium))
+                .foregroundStyle(FinTheme.ink400)
+            TextField("0", text: $amountText)
+                .keyboardType(.decimalPad)
+                .font(.system(size: 48, weight: .heavy))
+                .kerning(-0.5)
+                .foregroundStyle(FinTheme.ink)
+                .multilineTextAlignment(.center)
+                .fixedSize()
+                .onChange(of: amountText) { _, newValue in
+                    reformatAmount(newValue)
+                }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+    }
+
+    private var nameEntry: some View {
+        TextField("Name (e.g. Netflix, Car EMI, Card bill)", text: $name)
+            .font(.system(size: 16, weight: .medium))
+            .foregroundStyle(FinTheme.ink)
+            .multilineTextAlignment(.center)
+            .padding(.vertical, 15)
+            .padding(.horizontal, 16)
+            .frame(maxWidth: .infinity)
+            .finCard(radius: 16)
+    }
+
+    private var typeSegments: some View {
+        HStack(spacing: 0) {
+            ForEach(TransactionType.allCases) { candidate in
+                Button {
+                    FinHaptics.selection()
+                    withAnimation(.snappy(duration: 0.25)) {
+                        type = candidate
+                    }
+                } label: {
+                    Text(candidate.label)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(type == candidate ? .white : FinTheme.ink400)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 38)
+                        .background {
+                            if type == candidate {
+                                Capsule()
+                                    .fill(FinTheme.coral)
+                                    .shadow(color: FinTheme.coral.opacity(0.28), radius: 8, x: 0, y: 5)
+                            }
+                        }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(3)
+        .background(FinTheme.paper, in: Capsule())
+    }
+
+    private var scheduleCard: some View {
+        labeledCard("Schedule") {
+            detailRow(label: "Repeats") {
+                Menu {
+                    ForEach(RecurrenceFrequency.allCases) { candidate in
+                        Button(candidate.label) { frequency = candidate }
+                    }
+                } label: {
+                    detailValue(frequency.label)
+                }
+            }
+            Divider().overlay(FinTheme.lineSoft)
+            detailRow(label: "First payment") {
+                DatePicker("", selection: $startDate, displayedComponents: .date)
+                    .labelsHidden()
+            }
+        }
+    }
+
+    private var loanCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            labeledCard("Loan / EMI") {
+                Toggle("Fixed number of installments", isOn: $isLoan)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(FinTheme.ink600)
+                    .tint(FinTheme.coral)
+                    .padding(.vertical, 8)
+                if isLoan {
+                    Divider().overlay(FinTheme.lineSoft)
+                    detailRow(label: "Installments left") {
+                        TextField("0", text: $installmentsText)
+                            .keyboardType(.numberPad)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(FinTheme.ink)
+                            .multilineTextAlignment(.trailing)
+                            .frame(maxWidth: 100)
+                    }
+                }
+            }
+            footnote("For loans and EMIs the mandate stops automatically after the last installment.")
+        }
+    }
+
+    private var postingCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            labeledCard("Posting") {
+                detailRow(label: type == .transfer ? "From account" : "Account") {
+                    Menu {
+                        accountMenuItems(selection: $selectedAccountID)
+                    } label: {
+                        detailValue(accounts.first { $0.id == selectedAccountID }?.name ?? "Select")
+                    }
+                }
+                Divider().overlay(FinTheme.lineSoft)
+                if type == .transfer {
+                    detailRow(label: "To account") {
+                        Menu {
+                            accountMenuItems(
+                                selection: $selectedToAccountID,
+                                excluding: selectedAccountID
+                            )
+                        } label: {
+                            detailValue(accounts.first { $0.id == selectedToAccountID }?.name ?? "Select")
+                        }
+                    }
+                } else {
+                    detailRow(label: "Category") {
+                        Menu {
+                            Button("None") { selectedCategoryID = nil }
+                            ForEach(typeCategories) { category in
+                                Button {
+                                    selectedCategoryID = category.id
+                                } label: {
+                                    Label(category.name, systemImage: category.symbol)
+                                }
+                            }
+                        } label: {
+                            detailValue(
+                                categories.first { $0.id == selectedCategoryID }?.name ?? "None"
+                            )
+                        }
+                    }
+                }
+                Divider().overlay(FinTheme.lineSoft)
+                Toggle("Post automatically", isOn: $autoPost)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(FinTheme.ink600)
+                    .tint(FinTheme.coral)
+                    .padding(.vertical, 8)
+            }
+            footnote(autoPost
+                     ? "Payments are logged automatically when due."
+                     : "You'll get an Upcoming reminder and confirm each payment.")
+        }
+    }
+
+    // MARK: Building blocks
+
+    private func labeledCard(_ label: String, @ViewBuilder content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(label)
+                .finSectionLabel()
+                .padding(.leading, 4)
+            VStack(spacing: 0) {
+                content()
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity)
+            .finCard(radius: 16)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func footnote(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 12))
+            .foregroundStyle(FinTheme.ink400)
+            .padding(.leading, 4)
+    }
+
+    private func detailRow(label: String, @ViewBuilder value: () -> some View) -> some View {
+        HStack {
+            Text(label)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(FinTheme.ink600)
+            Spacer()
+            value()
+        }
+        .padding(.vertical, 12)
+    }
+
+    private func detailValue(_ text: String) -> some View {
+        HStack(spacing: 6) {
+            Text(text)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(FinTheme.ink)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(FinTheme.ink400)
+        }
+    }
+
+    @ViewBuilder
+    private func accountMenuItems(selection: Binding<UUID?>, excluding: UUID? = nil) -> some View {
+        ForEach(accounts.filter { $0.id != excluding }.grouped, id: \.group) { entry in
+            Section(entry.group.rawValue) {
+                ForEach(entry.accounts) { account in
+                    Button(account.name) {
+                        selection.wrappedValue = account.id
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: Logic (unchanged)
 
     private func populate() {
         guard let rule else {
@@ -148,7 +380,7 @@ struct RecurringRuleEditorView: View {
             return
         }
         name = rule.name
-        amountText = String(format: "%g", rule.amount)
+        amountText = Self.formattedAmountString(rule.amount)
         type = rule.type
         frequency = rule.frequency
         startDate = rule.dayAnchor
@@ -163,7 +395,7 @@ struct RecurringRuleEditorView: View {
     }
 
     private func save() {
-        guard let amount = Double(amountText) else { return }
+        guard let amount else { return }
         store.saveRecurringRule(
             rule,
             name: name.trimmingCharacters(in: .whitespaces),

@@ -2,6 +2,9 @@
 //  CategoryEditorView.swift
 //  Finlogue
 //
+//  Design-system category sheet: cream canvas, pill type segments,
+//  paper cards for icon and color pickers.
+//
 
 import SwiftUI
 
@@ -34,85 +37,178 @@ struct CategoryEditorView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    TextField("Category name", text: $name)
-                    Picker("Type", selection: $type) {
-                        ForEach(TransactionType.categorizable) { type in
-                            Text(type.label).tag(type)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .listRowSeparator(.hidden)
-                }
+        VStack(spacing: 0) {
+            Capsule()
+                .fill(FinTheme.line)
+                .frame(width: 38, height: 5)
+                .padding(.top, 10)
+                .padding(.bottom, 2)
 
-                Section("Icon") {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 8) {
-                        ForEach(Self.symbols, id: \.self) { candidate in
-                            Button {
-                                symbol = candidate
-                            } label: {
-                                Image(systemName: candidate)
-                                    .frame(width: 36, height: 36)
-                                    .background(
-                                        symbol == candidate ? Color(hex: colorHex) : Color(.systemGray5),
-                                        in: RoundedRectangle(cornerRadius: 8)
-                                    )
-                                    .foregroundStyle(symbol == candidate ? .white : .primary)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
+            HStack {
+                Button("Cancel") { dismiss() }
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(FinTheme.ink600)
+                Spacer()
+                Text(category == nil ? "New category" : "Edit category")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(FinTheme.ink)
+                Spacer()
+                Button("Save") { save() }
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(canSave ? FinTheme.coral : FinTheme.ink400)
+                    .disabled(!canSave)
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 20)
+            .padding(.top, 8)
+            .padding(.bottom, 16)
 
-                Section("Color") {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 8) {
-                        ForEach(Self.colors, id: \.self) { candidate in
-                            Button {
-                                colorHex = candidate
-                            } label: {
-                                Circle()
-                                    .fill(Color(hex: candidate))
-                                    .frame(width: 32, height: 32)
-                                    .overlay {
-                                        if colorHex == candidate {
-                                            Image(systemName: "checkmark")
-                                                .font(.caption.bold())
-                                                .foregroundStyle(.white)
-                                        }
-                                    }
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.vertical, 4)
+            ScrollView {
+                VStack(spacing: 24) {
+                    nameEntry
+                    typeSegments
+                    iconCard
+                    colorCard
                 }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
             }
-            .navigationTitle(category == nil ? "New Category" : "Edit Category")
-            .navigationBarTitleDisplayMode(.inline)
-            .scrollContentBackground(.hidden)
-            .background(FinTheme.canvas)
-            .fontDesign(.rounded)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { save() }
-                        .disabled(!canSave)
-                }
-            }
-            .onAppear {
-                guard let category else { return }
-                name = category.name
-                type = category.type
-                symbol = category.symbol
-                colorHex = category.colorHex
+            .scrollDismissesKeyboard(.interactively)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                UIApplication.shared.sendAction(
+                    #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
+                )
             }
         }
+        .background(FinTheme.canvas)
+        .fontDesign(.rounded)
+        .onAppear {
+            guard let category else { return }
+            name = category.name
+            type = category.type
+            symbol = category.symbol
+            colorHex = category.colorHex
+        }
     }
+
+    // MARK: Pieces
+
+    private var nameEntry: some View {
+        HStack(spacing: 12) {
+            Image(systemName: symbol)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 34, height: 34)
+                .background(
+                    Color(hex: colorHex),
+                    in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                )
+            TextField("Category name", text: $name)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(FinTheme.ink)
+        }
+        .padding(.vertical, 11)
+        .padding(.horizontal, 16)
+        .frame(maxWidth: .infinity)
+        .finCard(radius: 16)
+    }
+
+    private var typeSegments: some View {
+        HStack(spacing: 0) {
+            ForEach(TransactionType.categorizable) { candidate in
+                Button {
+                    FinHaptics.selection()
+                    withAnimation(.snappy(duration: 0.25)) {
+                        type = candidate
+                    }
+                } label: {
+                    Text(candidate.label)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(type == candidate ? .white : FinTheme.ink400)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 38)
+                        .background {
+                            if type == candidate {
+                                Capsule()
+                                    .fill(FinTheme.coral)
+                                    .shadow(color: FinTheme.coral.opacity(0.28), radius: 8, x: 0, y: 5)
+                            }
+                        }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(3)
+        .background(FinTheme.paper, in: Capsule())
+    }
+
+    private var iconCard: some View {
+        labeledCard("Icon") {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 8) {
+                ForEach(Self.symbols, id: \.self) { candidate in
+                    Button {
+                        FinHaptics.selection()
+                        symbol = candidate
+                    } label: {
+                        Image(systemName: candidate)
+                            .font(.system(size: 15, weight: .medium))
+                            .frame(width: 38, height: 38)
+                            .background(
+                                symbol == candidate ? Color(hex: colorHex) : FinTheme.paperInset,
+                                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            )
+                            .foregroundStyle(symbol == candidate ? .white : FinTheme.ink600)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.vertical, 12)
+        }
+    }
+
+    private var colorCard: some View {
+        labeledCard("Color") {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 10) {
+                ForEach(Self.colors, id: \.self) { candidate in
+                    Button {
+                        FinHaptics.selection()
+                        colorHex = candidate
+                    } label: {
+                        Circle()
+                            .fill(Color(hex: candidate))
+                            .frame(width: 34, height: 34)
+                            .overlay {
+                                if colorHex == candidate {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 13, weight: .bold))
+                                        .foregroundStyle(.white)
+                                }
+                            }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.vertical, 12)
+        }
+    }
+
+    private func labeledCard(_ label: String, @ViewBuilder content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(label)
+                .finSectionLabel()
+                .padding(.leading, 4)
+            VStack(spacing: 0) {
+                content()
+            }
+            .padding(.horizontal, 18)
+            .frame(maxWidth: .infinity)
+            .finCard(radius: 16)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: Logic (unchanged)
 
     private func save() {
         store.saveCategory(
