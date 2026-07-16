@@ -10,17 +10,17 @@ A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI*
 
 | Home | Insights |
 | :---: | :---: |
-| <img src="Screenshots/ios-home.png" alt="Home" width="320"> | <img src="Screenshots/ios-insights.png" alt="Insights" width="320"> |
+| <img src="Screenshots/ios-home.png" alt="Home" width="180"> | <img src="Screenshots/ios-insights.png" alt="Insights" width="180"> |
 | **Budgets** | **Settings** |
-| <img src="Screenshots/ios-budgets.png" alt="Budgets" width="320"> | <img src="Screenshots/ios-settings.png" alt="Settings" width="320"> |
+| <img src="Screenshots/ios-budgets.png" alt="Budgets" width="180"> | <img src="Screenshots/ios-settings.png" alt="Settings" width="180"> |
 
 ### Apple Watch
 
 | Home | Transactions |
 | :---: | :---: |
-| <img src="Screenshots/watch-home.png" alt="Watch Home" width="340"> | <img src="Screenshots/watch-transactions.png" alt="Watch Transactions" width="340"> |
+| <img src="Screenshots/watch-home.png" alt="Watch Home" width="180"> | <img src="Screenshots/watch-transactions.png" alt="Watch Transactions" width="180"> |
 | **Quick add** | **Account picker** |
-| <img src="Screenshots/watch-quickadd.png" alt="Watch Quick Add" width="340"> | <img src="Screenshots/watch-quickadd-account.png" alt="Watch Account Picker" width="340"> |
+| <img src="Screenshots/watch-quickadd.png" alt="Watch Quick Add" width="180"> | <img src="Screenshots/watch-quickadd-account.png" alt="Watch Account Picker" width="180"> |
 
 ---
 
