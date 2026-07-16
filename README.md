@@ -12,7 +12,7 @@ A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI*
 | :---: | :---: | :---: | :---: |
 | <img src="Screenshots/ios-home.png" alt="Home" width="180"> | <img src="Screenshots/ios-insights.png" alt="Insights" width="180"> | <img src="Screenshots/ios-budgets.png" alt="Budgets" width="180"> | <img src="Screenshots/ios-settings.png" alt="Settings" width="180"> |
 
-### Apple Watch
+### WatchOS
 
 | Home | Transactions | **Quick add** | **Account picker** |
 | :---: | :---: | :---: | :---: |
@@ -35,7 +35,7 @@ A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI*
 - **Display currency** — INR by default, configurable in Settings.
 - **Light theme** enforced app-wide, regardless of the system appearance.
 
-### Watch app
+### WatchOS app
 
 - Balance and this-month spend at a glance on a gradient home screen with compact toolbar controls, plus the recent transaction list and last-sync status.
 - **Quick add** in three taps: amount (preset chips or digital crown) → category (recently used first) → account (grouped Banks / Cards / Others, last used first). Saves locally and syncs to the phone with a success haptic.
@@ -118,4 +118,4 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ---
 
-*Built with 💻 by Jobin. Powered by SwiftUI, SwiftData, and WatchConnectivity.*
+*Built with ☕️ by Jobin.*
