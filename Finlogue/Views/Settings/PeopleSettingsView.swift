@@ -1,0 +1,142 @@
+//
+//  PeopleSettingsView.swift
+//  Finlogue
+//
+//  People management sub-screen: friends/family that transactions can be
+//  tagged to. Spending on their behalf is excluded from insights and budgets.
+//
+
+import SwiftUI
+import SwiftData
+
+struct PeopleSettingsView: View {
+    @EnvironmentObject private var store: TransactionStore
+    @EnvironmentObject private var tabBarVisibility: TabBarVisibility
+    @Environment(\.dismiss) private var dismiss
+
+    @Query(sort: \Person.name) private var people: [Person]
+
+    @State private var editingPerson: Person?
+    @State private var showAddPerson = Self.launchIntoAddPerson
+
+    /// Test hook: `-showAddPerson` opens the person editor on launch.
+    private static var launchIntoAddPerson: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("-showAddPerson")
+        #else
+        return false
+        #endif
+    }
+
+    var body: some View {
+        List {
+            headerSection
+            if people.isEmpty {
+                Section {
+                    ContentUnavailableView(
+                        "No people yet",
+                        systemImage: "person.2",
+                        description: Text("Add a friend or family member, then tag a transaction to them when you spend on their behalf.")
+                    )
+                    .listRowBackground(Color.clear)
+                }
+                .padding(.vertical, 40)
+            } else {
+                Section {
+                    ForEach(people) { person in
+                        personRow(person)
+                    }
+                } footer: {
+                    Text("Tagged transactions still move your balance, but are left out of insights and budgets since you'll be paid back.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(FinTheme.ink400)
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .listSectionSpacing(20)
+        .scrollContentBackground(.hidden)
+        .background(FinTheme.canvas)
+        .contentMargins(.horizontal, 24, for: .scrollContent)
+        .contentMargins(.bottom, 24, for: .scrollContent)
+        .toolbar(.hidden, for: .navigationBar)
+        .onAppear { tabBarVisibility.isHidden = true }
+        .onDisappear { tabBarVisibility.isHidden = false }
+        .sheet(isPresented: $showAddPerson) { PersonEditorView() }
+        .sheet(item: $editingPerson) { PersonEditorView(person: $0) }
+    }
+
+    private var headerSection: some View {
+        Section {
+        } header: {
+            HStack {
+                Button {
+                    FinHaptics.tap()
+                    dismiss()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(FinTheme.ink)
+                        .frame(width: 44, height: 44)
+                        .background(FinTheme.paper, in: Circle())
+                        .shadow(color: FinTheme.shadowTint.opacity(0.06), radius: 4, x: 0, y: 2)
+                }
+                .buttonStyle(.plain)
+                Text("People")
+                    .font(.system(size: 26, weight: .heavy))
+                    .kerning(-0.5)
+                    .foregroundStyle(FinTheme.ink)
+                    .padding(.leading, 8)
+                Spacer()
+                Button {
+                    FinHaptics.tap()
+                    showAddPerson = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .background(FinTheme.coral, in: Circle())
+                        .shadow(color: FinTheme.coral.opacity(0.28), radius: 12, x: 0, y: 8)
+                }
+                .buttonStyle(.plain)
+            }
+            .textCase(nil)
+            .finHeaderAligned()
+            .padding(.top, 8)
+        }
+    }
+
+    private func personRow(_ person: Person) -> some View {
+        HStack(spacing: 12) {
+            Text(person.initials)
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 34, height: 34)
+                .background(Color(hex: person.colorHex), in: Circle())
+            Text(person.name)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(FinTheme.ink)
+            Spacer()
+            if let count = person.transactions?.count, count > 0 {
+                Text("\(count)")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(FinTheme.ink400)
+                    .monospacedDigit()
+            }
+        }
+        .padding(.vertical, 2)
+        .listRowBackground(FinTheme.paper)
+        .listRowSeparatorTint(FinTheme.lineSoft)
+        .contentShape(Rectangle())
+        .onTapGesture { editingPerson = person }
+        .swipeActions(edge: .trailing) {
+            Button(role: .destructive) {
+                FinHaptics.warning()
+                store.delete(person)
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+}

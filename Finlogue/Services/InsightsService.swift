@@ -28,6 +28,9 @@ struct DailyTotal: Identifiable {
 }
 
 enum InsightsService {
+    /// Transactions in `month`, excluding those tagged to a person — spending on
+    /// behalf of someone is reimbursable, so it never counts as your own
+    /// income/expense in analytics or budgets.
     static func transactions(
         in context: ModelContext, month: Date, calendar: Calendar = .current
     ) -> [Transaction] {
@@ -37,7 +40,7 @@ enum InsightsService {
         let descriptor = FetchDescriptor<Transaction>(
             predicate: #Predicate { $0.date >= start && $0.date < end }
         )
-        return (try? context.fetch(descriptor)) ?? []
+        return ((try? context.fetch(descriptor)) ?? []).filter { $0.person == nil }
     }
 
     /// Expense totals per category for one month, largest first.

@@ -81,16 +81,22 @@ final class PhoneSyncEngine: NSObject, ObservableObject {
             let category = try categoryID.flatMap { id in
                 try context.fetch(FetchDescriptor<Category>(predicate: #Predicate { $0.id == id })).first
             }
+            let personID = dto.personID
+            let person = try personID.flatMap { id in
+                try context.fetch(FetchDescriptor<Person>(predicate: #Predicate { $0.id == id })).first
+            }
             let transaction = Transaction(
                 id: dto.id,
                 type: dto.type,
                 name: dto.name,
                 amount: dto.amount,
+                charges: dto.charges,
                 date: dto.date,
                 note: dto.note,
                 account: account,
                 toAccount: toAccount,
                 category: category,
+                person: person,
                 createdAt: dto.createdAt,
                 updatedAt: dto.updatedAt
             )

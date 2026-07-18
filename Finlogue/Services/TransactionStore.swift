@@ -40,17 +40,21 @@ final class TransactionStore: ObservableObject {
         type: TransactionType,
         name: String,
         amount: Double,
+        charges: Double = 0,
         date: Date,
         note: String?,
         account: Account?,
         toAccount: Account? = nil,
-        category: Category?
+        category: Category?,
+        person: Person? = nil
     ) {
         let transaction = Transaction(
-            type: type, name: name, amount: amount, date: date,
+            type: type, name: name, amount: amount,
+            charges: max(0, charges), date: date,
             note: note, account: account,
             toAccount: type == .transfer ? toAccount : nil,
-            category: type == .transfer ? nil : category
+            category: type == .transfer ? nil : category,
+            person: person
         )
         context.insert(transaction)
         persist()
@@ -61,20 +65,24 @@ final class TransactionStore: ObservableObject {
         type: TransactionType,
         name: String,
         amount: Double,
+        charges: Double = 0,
         date: Date,
         note: String?,
         account: Account?,
         toAccount: Account? = nil,
-        category: Category?
+        category: Category?,
+        person: Person? = nil
     ) {
         transaction.type = type
         transaction.name = name
         transaction.amount = amount
+        transaction.charges = max(0, charges)
         transaction.date = date
         transaction.note = note
         transaction.account = account
         transaction.toAccount = type == .transfer ? toAccount : nil
         transaction.category = type == .transfer ? nil : category
+        transaction.person = person
         transaction.updatedAt = .now
         persist()
     }
@@ -143,6 +151,33 @@ final class TransactionStore: ObservableObject {
 
     func delete(_ category: Category) {
         context.delete(category)
+        persist()
+    }
+
+    // MARK: People
+
+    @discardableResult
+    func savePerson(_ person: Person?, name: String, colorHex: String) -> Person {
+        if let person {
+            person.name = name
+            person.colorHex = colorHex
+            person.updatedAt = .now
+            persist()
+            return person
+        } else {
+            let count = (try? context.fetchCount(FetchDescriptor<Person>())) ?? 0
+            let created = Person(
+                name: name,
+                colorHex: colorHex.isEmpty ? Person.color(forIndex: count) : colorHex
+            )
+            context.insert(created)
+            persist()
+            return created
+        }
+    }
+
+    func delete(_ person: Person) {
+        context.delete(person)
         persist()
     }
 
@@ -342,6 +377,19 @@ final class TransactionStore: ObservableObject {
                 category: sample.4.flatMap(category)
             ))
         }
+        // A friend/family member and a couple of transactions on their behalf,
+        // plus a credit-card surcharge example.
+        let rahul = Person(name: "Rahul", colorHex: Person.color(forIndex: 0))
+        context.insert(rahul)
+        context.insert(Transaction(
+            type: .expense, name: "Concert tickets", amount: 4_500, charges: 90,
+            date: daysAgo(9), account: card, category: category("Entertainment"), person: rahul
+        ))
+        context.insert(Transaction(
+            type: .expense, name: "Flight fee", amount: 3_200, charges: 250,
+            date: daysAgo(5), account: card, category: category("Transport")
+        ))
+
         // Transfers: card bill payment and a savings sweep between banks.
         context.insert(Transaction(
             type: .transfer, name: "Card bill payment", amount: 8_000,

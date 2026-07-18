@@ -70,12 +70,20 @@ struct HomeView: View {
         return transactions.filter { $0.date >= interval.start && $0.date < interval.end }
     }
 
+    /// Person-tagged transactions are reimbursable, so they're left out of the
+    /// income/spent tiles (they still move the account balance).
+    private var ownMonthTransactions: [Transaction] {
+        monthTransactions.filter { $0.person == nil }
+    }
+
     private var monthIncome: Double {
-        monthTransactions.filter { $0.type == .income }.reduce(0) { $0 + $1.amount }
+        ownMonthTransactions.filter { $0.type == .income }.reduce(0) { $0 + $1.amount }
     }
 
     private var monthExpense: Double {
-        monthTransactions.filter { $0.type == .expense }.reduce(0) { $0 + $1.amount }
+        ownMonthTransactions
+            .filter { $0.type == .expense }
+            .reduce(0) { $0 + $1.amount + $1.charges }
     }
 
     /// Net-worth movement this month, as a percentage of where the month started.
@@ -258,7 +266,7 @@ struct HomeView: View {
                     summaryTile(
                         title: "Spent", amount: monthExpense,
                         symbol: "arrow.up.right", chipBackground: FinTheme.tintPeach,
-                        chipForeground: FinTheme.coral
+                        chipForeground: FinTheme.red
                     )
                 }
                 // Match the 14pt tile gap: the header stack's 20pt spacing minus 6.

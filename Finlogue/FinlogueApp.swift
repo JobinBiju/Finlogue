@@ -16,6 +16,7 @@ struct FinlogueApp: App {
     init() {
         let schema = Schema([
             Transaction.self, Account.self, Category.self, Budget.self, RecurringRule.self,
+            Person.self,
         ])
         let configuration = ModelConfiguration(
             "Finlogue-v3",

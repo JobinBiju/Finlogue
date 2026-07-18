@@ -49,7 +49,7 @@ struct AccountEditorView: View {
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 20)
-            .padding(.top, 8)
+            .padding(.top, 12)
             .padding(.bottom, 32)
 
             ScrollView {

@@ -37,12 +37,6 @@ struct BudgetEditorView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Capsule()
-                .fill(FinTheme.line)
-                .frame(width: 38, height: 5)
-                .padding(.top, 10)
-                .padding(.bottom, 2)
-
             HStack {
                 Button("Cancel") { dismiss() }
                     .font(.system(size: 16, weight: .medium))

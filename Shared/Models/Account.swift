@@ -111,6 +111,12 @@ extension Account {
             .reduce(0) { $0 + $1.amount }
     }
 
+    /// Fees on this account's own transactions — always an extra outflow,
+    /// regardless of transaction type.
+    private var chargesTotal: Double {
+        (transactions ?? []).reduce(0) { $0 + $1.charges }
+    }
+
     /// Transfers arriving into this account.
     private var transferInTotal: Double {
         (incomingTransfers ?? [])
@@ -118,15 +124,18 @@ extension Account {
             .reduce(0) { $0 + $1.amount }
     }
 
-    /// Bank/cash: openingBalance + income + transfers in − expenses − transfers out.
+    /// Bank/cash: openingBalance + income + transfers in − expenses − transfers
+    /// out − fees.
     var currentBalance: Double {
-        openingBalance + incomeTotal + transferInTotal - expenseTotal - transferOutTotal
+        openingBalance + incomeTotal + transferInTotal
+            - expenseTotal - transferOutTotal - chargesTotal
     }
 
-    /// Credit card: total outstanding. Opening outstanding plus charges, minus
-    /// payments (income on the card or transfers into it).
+    /// Credit card: total outstanding. Opening outstanding plus charges and
+    /// fees, minus payments (income on the card or transfers into it).
     var spent: Double {
-        max(0, openingBalance + expenseTotal + transferOutTotal - incomeTotal - transferInTotal)
+        max(0, openingBalance + expenseTotal + transferOutTotal + chargesTotal
+            - incomeTotal - transferInTotal)
     }
 
     var available: Double? {
@@ -167,9 +176,9 @@ extension Account {
         let owedAtStatement = (transactions ?? []).reduce(openingBalance) { total, transaction in
             guard transaction.date < endOfStatementDay else { return total }
             switch transaction.type {
-            case .expense: return total + transaction.amount
-            case .income: return total - transaction.amount
-            case .transfer: return total + transaction.amount
+            case .expense: return total + transaction.amount + transaction.charges
+            case .income: return total - transaction.amount + transaction.charges
+            case .transfer: return total + transaction.amount + transaction.charges
             }
         } - (incomingTransfers ?? [])
             .filter { $0.type == .transfer && $0.date < endOfStatementDay }

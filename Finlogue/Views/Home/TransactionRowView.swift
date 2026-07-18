@@ -18,6 +18,17 @@ struct TransactionRowView: View {
                 .foregroundStyle(iconColor)
                 .frame(width: 46, height: 46)
                 .background(iconColor.opacity(0.14), in: Circle())
+                .overlay(alignment: .bottomTrailing) {
+                    if let person = transaction.person {
+                        Text(person.initials)
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 18, height: 18)
+                            .background(Color(hex: person.colorHex), in: Circle())
+                            .overlay(Circle().strokeBorder(FinTheme.paper, lineWidth: 1.5))
+                            .offset(x: 3, y: 3)
+                    }
+                }
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(transaction.name)
@@ -32,11 +43,19 @@ struct TransactionRowView: View {
 
             Spacer()
 
-            Text(amountText)
-                .font(.system(size: 15, weight: .bold))
-                .kerning(-0.3)
-                .foregroundStyle(amountColor)
-                .monospacedDigit()
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(amountText)
+                    .font(.system(size: 15, weight: .bold))
+                    .kerning(-0.3)
+                    .foregroundStyle(amountColor)
+                    .monospacedDigit()
+                if transaction.charges > 0 {
+                    Text("+\(CurrencyFormatter.string(transaction.charges)) fee")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(FinTheme.ink400)
+                        .monospacedDigit()
+                }
+            }
         }
         .padding(.vertical, 6)
     }
@@ -61,11 +80,15 @@ struct TransactionRowView: View {
         if isTransfer {
             let from = transaction.account?.name ?? "?"
             let to = transaction.toAccount?.name ?? "?"
-            return "\(from) → \(to)"
+            let base = "\(from) → \(to)"
+            return transaction.person.map { "\(base) · for \($0.name)" } ?? base
         }
         var parts = [transaction.category?.name ?? "Uncategorized"]
         if let account = transaction.account {
             parts.append(account.name)
+        }
+        if let person = transaction.person {
+            parts.append("for \(person.name)")
         }
         return parts.joined(separator: " · ")
     }

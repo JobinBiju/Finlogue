@@ -115,8 +115,8 @@ struct RecurringRuleEditorView: View {
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 20)
-            .padding(.top, 8)
-            .padding(.bottom, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 24)
 
             ScrollView {
                 VStack(spacing: 24) {

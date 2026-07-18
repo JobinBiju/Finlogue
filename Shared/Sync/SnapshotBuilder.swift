@@ -21,6 +21,7 @@ enum SnapshotBuilder {
         let categories = try context.fetch(FetchDescriptor<Category>(sortBy: [SortDescriptor(\.sortOrder)]))
         let budgets = try context.fetch(FetchDescriptor<Budget>())
         let rules = try context.fetch(FetchDescriptor<RecurringRule>(sortBy: [SortDescriptor(\.name)]))
+        let people = try context.fetch(FetchDescriptor<Person>(sortBy: [SortDescriptor(\.name)]))
         var transactionDescriptor = FetchDescriptor<Transaction>(
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         )
@@ -35,7 +36,8 @@ enum SnapshotBuilder {
             categories: categories.map(CategoryDTO.init),
             budgets: budgets.map(BudgetDTO.init),
             recurringRules: rules.map(RecurringRuleDTO.init),
-            transactions: transactions.map(TransactionDTO.init)
+            transactions: transactions.map(TransactionDTO.init),
+            people: people.map(PersonDTO.init)
         )
     }
 
@@ -127,6 +129,29 @@ enum SnapshotBuilder {
             category.updatedAt = dto.updatedAt
         }
 
+        // People
+        let existingPeople = try context.fetch(FetchDescriptor<Person>())
+        var peopleByID: [UUID: Person] = [:]
+        for person in existingPeople {
+            if snapshot.people.contains(where: { $0.id == person.id }) {
+                peopleByID[person.id] = person
+            } else {
+                context.delete(person)
+            }
+        }
+        for dto in snapshot.people {
+            let person = peopleByID[dto.id] ?? {
+                let created = Person(id: dto.id, name: dto.name, colorHex: dto.colorHex)
+                context.insert(created)
+                peopleByID[dto.id] = created
+                return created
+            }()
+            person.name = dto.name
+            person.colorHex = dto.colorHex
+            person.createdAt = dto.createdAt
+            person.updatedAt = dto.updatedAt
+        }
+
         // Transactions
         let existingTransactions = try context.fetch(FetchDescriptor<Transaction>())
         var transactionsByID: [UUID: Transaction] = [:]
@@ -147,11 +172,13 @@ enum SnapshotBuilder {
             transaction.type = dto.type
             transaction.name = dto.name
             transaction.amount = dto.amount
+            transaction.charges = dto.charges
             transaction.date = dto.date
             transaction.note = dto.note
             transaction.account = dto.accountID.flatMap { accountsByID[$0] }
             transaction.toAccount = dto.toAccountID.flatMap { accountsByID[$0] }
             transaction.category = dto.categoryID.flatMap { categoriesByID[$0] }
+            transaction.person = dto.personID.flatMap { peopleByID[$0] }
             transaction.createdAt = dto.createdAt
             transaction.updatedAt = dto.updatedAt
         }

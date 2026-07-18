@@ -59,6 +59,7 @@ enum AppTheme: String, CaseIterable, Identifiable, Codable {
     case tino
     case plum
     case olive
+    case ocean
 
     var id: String { rawValue }
 
@@ -67,6 +68,7 @@ enum AppTheme: String, CaseIterable, Identifiable, Codable {
         case .tino: "Tino"
         case .plum: "Plum"
         case .olive: "Olive"
+        case .ocean: "Ocean"
         }
     }
 
@@ -76,6 +78,7 @@ enum AppTheme: String, CaseIterable, Identifiable, Codable {
         case .tino: "Warm cream & coral"
         case .plum: "Ghost-white & plum"
         case .olive: "Cornsilk & olive"
+        case .ocean: "Alice-blue & teal"
         }
     }
 
@@ -84,6 +87,7 @@ enum AppTheme: String, CaseIterable, Identifiable, Codable {
         case .tino: .tino
         case .plum: .plum
         case .olive: .olive
+        case .ocean: .ocean
         }
     }
 }
@@ -132,11 +136,30 @@ extension ThemePalette {
         green: "#5A7D2B", red400: "#B5462A", red: "#B5462A",
         blue: "#2E6BD6", violet: "#B96BE0",
         canvas: "#FFF9DD", paper: "#FFFDF2", paperInset: "#EEF0DD",
-        ink: "#283618", ink600: "#606C38", ink400: "#7A8253",
+        ink: "#0D1208", ink600: "#3C5124", ink400: "#6B9041",
         line: "#DFE3C8", lineSoft: "#EEF0DD", cream: "#FEFAE0",
         tintLime: "#E4EFC0", tintPeach: "#F6E0CE",
         tintAmber: "#FBEBC7", tintCoral: "#FBDECF",
         shadowTint: "#606C38", watchGradientTop: "#BC6C25",
+        slate: "#64748B", mutedIcon: "#94A3B8"
+    )
+
+    /// Ocean — alice-blue canvas, stormy-teal primary, with pearl-aqua and
+    /// tangerine warm accents. Same override scope as Plum/Olive; the five
+    /// source colors are mapped across primary, canvas, positive-soft, warm
+    /// accent and the soft "spent" tint.
+    static let ocean = ThemePalette(
+        coral: "#006D77", coral600: "#005A63",
+        amber: "#E29578", amber500: "#D07E5E",
+        lime100: "#DCEDE9", lime300: "#83C5BE", lime400: "#5FB0A6",
+        green: "#2F8F7A", red400: "#E29578", red: "#D9694B",
+        blue: "#2E6BD6", violet: "#B96BE0",
+        canvas: "#EDF6F9", paper: "#FBFDFE", paperInset: "#E3EFF1",
+        ink: "#102123", ink600: "#2E5A60", ink400: "#6E9298",
+        line: "#D5E6E9", lineSoft: "#E4EFF1", cream: "#EDF6F9",
+        tintLime: "#DCEDE9", tintPeach: "#FFDDD2",
+        tintAmber: "#FFE7DD", tintCoral: "#FFDDD2",
+        shadowTint: "#04353B", watchGradientTop: "#006D77",
         slate: "#64748B", mutedIcon: "#94A3B8"
     )
 }

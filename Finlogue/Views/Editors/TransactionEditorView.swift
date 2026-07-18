@@ -17,16 +17,21 @@ struct TransactionEditorView: View {
 
     @Query(sort: \Category.sortOrder) private var categories: [Category]
     @Query(sort: \Account.createdAt) private var accounts: [Account]
+    @Query(sort: \Person.name) private var people: [Person]
     @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
 
     @State private var type: TransactionType = .expense
     @State private var name = ""
     @State private var amountText = ""
+    @State private var chargesText = ""
     @State private var date = Date.now
     @State private var note = ""
     @State private var selectedAccountID: UUID?
     @State private var selectedToAccountID: UUID?
     @State private var selectedCategoryID: UUID?
+    @State private var selectedPersonID: UUID?
+    @State private var showNewPerson = false
+    @State private var newPersonName = ""
 
     @FocusState private var amountFocused: Bool
 
@@ -92,6 +97,19 @@ struct TransactionEditorView: View {
         return Double(raw)
     }
 
+    /// Charges are optional and small — a plain lenient parse (no live grouping).
+    private var chargesValue: Double {
+        let groupSeparator = Locale.current.groupingSeparator ?? ","
+        let decimalSeparator = Locale.current.decimalSeparator ?? "."
+        let raw = chargesText
+            .replacingOccurrences(of: groupSeparator, with: "")
+            .replacingOccurrences(of: decimalSeparator, with: ".")
+        return max(0, Double(raw) ?? 0)
+    }
+
+    /// Person tag applies to any type; charges only to outflows.
+    private var showsCharges: Bool { type != .income }
+
     /// Re-groups the typed amount live, preserving a partially typed fraction.
     private func reformatAmount(_ text: String) {
         let groupSeparator = Locale.current.groupingSeparator ?? ","
@@ -151,8 +169,8 @@ struct TransactionEditorView: View {
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 20)
-            .padding(.top, 8)
-            .padding(.bottom, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 24)
 
             ScrollView {
                 VStack(spacing: 24) {
@@ -175,6 +193,19 @@ struct TransactionEditorView: View {
         }
         .background(FinTheme.canvas)
         .fontDesign(.rounded)
+        .alert("New person", isPresented: $showNewPerson) {
+            TextField("Name", text: $newPersonName)
+            Button("Cancel", role: .cancel) {}
+            Button("Add") {
+                let trimmed = newPersonName.trimmingCharacters(in: .whitespaces)
+                guard !trimmed.isEmpty else { return }
+                let person = store.savePerson(nil, name: trimmed, colorHex: "")
+                selectedPersonID = person.id
+                FinHaptics.success()
+            }
+        } message: {
+            Text("Tag this transaction to a friend or family member.")
+        }
         .onAppear(perform: populate)
         .onChange(of: type) { _, newType in
             if let id = selectedCategoryID,
@@ -350,6 +381,30 @@ struct TransactionEditorView: View {
                     }
                     Divider().overlay(FinTheme.lineSoft)
                 }
+                if showsCharges {
+                    detailRow(label: "Charges") {
+                        HStack(spacing: 3) {
+                            Text(CurrencyFormatter.symbol())
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundStyle(FinTheme.ink400)
+                            TextField("0", text: $chargesText)
+                                .keyboardType(.decimalPad)
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(FinTheme.ink)
+                                .multilineTextAlignment(.trailing)
+                                .fixedSize()
+                        }
+                    }
+                    Divider().overlay(FinTheme.lineSoft)
+                }
+                detailRow(label: "For") {
+                    Menu {
+                        personMenuItems
+                    } label: {
+                        detailValue(people.first { $0.id == selectedPersonID }?.name ?? "Just me")
+                    }
+                }
+                Divider().overlay(FinTheme.lineSoft)
                 detailRow(label: "Date") {
                     DatePicker(
                         "", selection: $date,
@@ -391,6 +446,28 @@ struct TransactionEditorView: View {
             Image(systemName: "chevron.right")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(FinTheme.ink400)
+        }
+    }
+
+    @ViewBuilder
+    private var personMenuItems: some View {
+        Button {
+            selectedPersonID = nil
+        } label: {
+            Label("Just me", systemImage: selectedPersonID == nil ? "checkmark" : "person")
+        }
+        if !people.isEmpty {
+            Section("People") {
+                ForEach(people) { person in
+                    Button(person.name) { selectedPersonID = person.id }
+                }
+            }
+        }
+        Button {
+            newPersonName = ""
+            showNewPerson = true
+        } label: {
+            Label("New person…", systemImage: "plus")
         }
     }
 
@@ -438,11 +515,13 @@ struct TransactionEditorView: View {
         type = transaction.type
         name = transaction.name
         amountText = Self.formattedAmountString(transaction.amount)
+        chargesText = transaction.charges > 0 ? Self.formattedAmountString(transaction.charges) : ""
         date = transaction.date
         note = transaction.note ?? ""
         selectedAccountID = transaction.account?.id
         selectedToAccountID = transaction.toAccount?.id
         selectedCategoryID = transaction.category?.id
+        selectedPersonID = transaction.person?.id
     }
 
     private func dismissKeyboard() {
@@ -457,19 +536,23 @@ struct TransactionEditorView: View {
         let account = accounts.first { $0.id == selectedAccountID }
         let toAccount = accounts.first { $0.id == selectedToAccountID }
         let category = categories.first { $0.id == selectedCategoryID }
+        let person = people.first { $0.id == selectedPersonID }
+        let charges = showsCharges ? chargesValue : 0
         let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
 
         if let transaction {
             store.updateTransaction(
                 transaction, type: type, name: name.trimmingCharacters(in: .whitespaces),
-                amount: amount, date: date, note: trimmedNote.isEmpty ? nil : trimmedNote,
-                account: account, toAccount: toAccount, category: category
+                amount: amount, charges: charges, date: date,
+                note: trimmedNote.isEmpty ? nil : trimmedNote,
+                account: account, toAccount: toAccount, category: category, person: person
             )
         } else {
             store.addTransaction(
                 type: type, name: name.trimmingCharacters(in: .whitespaces),
-                amount: amount, date: date, note: trimmedNote.isEmpty ? nil : trimmedNote,
-                account: account, toAccount: toAccount, category: category
+                amount: amount, charges: charges, date: date,
+                note: trimmedNote.isEmpty ? nil : trimmedNote,
+                account: account, toAccount: toAccount, category: category, person: person
             )
         }
         if let account {

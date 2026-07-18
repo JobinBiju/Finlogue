@@ -13,6 +13,7 @@ struct SettingsView: View {
 
     @Query(sort: \Account.createdAt) private var accounts: [Account]
     @Query(sort: \Category.sortOrder) private var categories: [Category]
+    @Query(sort: \Person.name) private var people: [Person]
     @Query(sort: \RecurringRule.name) private var recurringRules: [RecurringRule]
 
     @AppStorage(AppSettings.currencyCodeKey) private var currencyCode = AppSettings.defaultCurrencyCode
@@ -21,6 +22,16 @@ struct SettingsView: View {
     @State private var showAddRule = Self.launchIntoAddRule
     @State private var pushAccounts = Self.launchIntoAccounts
     @State private var pushCategories = Self.launchIntoCategories
+    @State private var pushPeople = Self.launchIntoPeople
+
+    /// Test hook: `-openPeople` pushes the People screen on launch.
+    private static var launchIntoPeople: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("-openPeople")
+        #else
+        return false
+        #endif
+    }
 
     /// Test hook: `-openAccounts` pushes the Accounts screen on launch.
     private static var launchIntoAccounts: Bool {
@@ -71,6 +82,9 @@ struct SettingsView: View {
             }
             .navigationDestination(isPresented: $pushCategories) {
                 CategoriesSettingsView()
+            }
+            .navigationDestination(isPresented: $pushPeople) {
+                PeopleSettingsView()
             }
             .sheet(isPresented: $showAddRule) { RecurringRuleEditorView() }
             .sheet(item: $editingRule) { RecurringRuleEditorView(rule: $0) }
@@ -195,6 +209,17 @@ struct SettingsView: View {
                     title: "Categories",
                     symbol: "tag",
                     count: categories.count
+                )
+            }
+            .listRowBackground(FinTheme.paper)
+            .listRowSeparatorTint(FinTheme.lineSoft)
+            NavigationLink {
+                PeopleSettingsView()
+            } label: {
+                manageRow(
+                    title: "People",
+                    symbol: "person.2",
+                    count: people.count
                 )
             }
             .listRowBackground(FinTheme.paper)

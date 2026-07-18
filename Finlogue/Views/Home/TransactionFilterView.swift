@@ -10,17 +10,20 @@ struct TransactionFilter: Equatable {
     var type: TransactionType?
     var accountID: UUID?
     var categoryID: UUID?
+    var personID: UUID?
     var startDate: Date?
     var endDate: Date?
 
     var isActive: Bool {
-        type != nil || accountID != nil || categoryID != nil || startDate != nil || endDate != nil
+        type != nil || accountID != nil || categoryID != nil
+            || personID != nil || startDate != nil || endDate != nil
     }
 
     func matches(_ transaction: Transaction) -> Bool {
         if let type, transaction.type != type { return false }
         if let accountID, transaction.account?.id != accountID { return false }
         if let categoryID, transaction.category?.id != categoryID { return false }
+        if let personID, transaction.person?.id != personID { return false }
         if let startDate, transaction.date < Calendar.current.startOfDay(for: startDate) { return false }
         if let endDate {
             let endOfDay = Calendar.current.date(
@@ -38,6 +41,7 @@ struct TransactionFilterView: View {
 
     @Query(sort: \Account.createdAt) private var accounts: [Account]
     @Query(sort: \Category.sortOrder) private var categories: [Category]
+    @Query(sort: \Person.name) private var people: [Person]
 
     @State private var filterByDate = false
     @State private var startDate = Calendar.current.date(byAdding: .month, value: -1, to: .now) ?? .now
@@ -71,8 +75,8 @@ struct TransactionFilterView: View {
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 20)
-            .padding(.top, 8)
-            .padding(.bottom, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 32)
 
             ScrollView {
                 VStack(spacing: 24) {
@@ -166,6 +170,19 @@ struct TransactionFilterView: View {
                     }
                 } label: {
                     detailValue(categories.first { $0.id == filter.categoryID }?.name ?? "All categories")
+                }
+            }
+            if !people.isEmpty {
+                Divider().overlay(FinTheme.lineSoft)
+                detailRow(label: "Person") {
+                    Menu {
+                        Button("Anyone") { filter.personID = nil }
+                        ForEach(people) { person in
+                            Button(person.name) { filter.personID = person.id }
+                        }
+                    } label: {
+                        detailValue(people.first { $0.id == filter.personID }?.name ?? "Anyone")
+                    }
                 }
             }
         }
