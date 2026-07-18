@@ -75,7 +75,7 @@ struct WatchHomeView: View {
         .padding(.horizontal, 8)
         .containerBackground(
             LinearGradient(
-                colors: [Color(hex: "#1D4ED8").opacity(0.55), .black],
+                colors: [FinTheme.watchGradientTop.opacity(0.55), .black],
                 startPoint: .top, endPoint: .bottom
             ),
             for: .navigation

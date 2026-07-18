@@ -38,7 +38,6 @@ struct FinlogueApp: App {
                 .environmentObject(store)
                 .preferredColorScheme(.light)
                 .fontDesign(.rounded)
-                .tint(FinTheme.coral)
         }
         .modelContainer(container)
         .onChange(of: scenePhase) { _, phase in

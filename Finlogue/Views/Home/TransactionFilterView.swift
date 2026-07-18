@@ -44,75 +44,198 @@ struct TransactionFilterView: View {
     @State private var endDate = Date.now
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section("Type") {
-                    Picker("Type", selection: $filter.type) {
-                        Text("All").tag(TransactionType?.none)
-                        ForEach(TransactionType.allCases) { type in
-                            Text(type.label).tag(TransactionType?.some(type))
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                }
+        VStack(spacing: 0) {
+            Capsule()
+                .fill(FinTheme.line)
+                .frame(width: 38, height: 5)
+                .padding(.top, 10)
+                .padding(.bottom, 2)
 
-                Section("Account") {
-                    Picker("Account", selection: $filter.accountID) {
-                        Text("All accounts").tag(UUID?.none)
-                        ForEach(accounts.grouped, id: \.group) { entry in
-                            Section(entry.group.rawValue) {
-                                ForEach(entry.accounts) { account in
-                                    Text(account.name).tag(UUID?.some(account.id))
-                                }
+            HStack {
+                Button("Clear") {
+                    FinHaptics.tap()
+                    filter = TransactionFilter()
+                    filterByDate = false
+                }
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(filter.isActive || filterByDate ? FinTheme.coral : FinTheme.ink400)
+                .disabled(!(filter.isActive || filterByDate))
+                Spacer()
+                Text("Filter")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(FinTheme.ink)
+                Spacer()
+                Button("Done") { applyAndDismiss() }
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(FinTheme.coral)
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 20)
+            .padding(.top, 8)
+            .padding(.bottom, 16)
+
+            ScrollView {
+                VStack(spacing: 24) {
+                    typeSegments
+                    detailsCard
+                    dateCard
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
+            }
+        }
+        .background(FinTheme.canvas)
+        .fontDesign(.rounded)
+        .presentationDetents([.medium, .large])
+        .onAppear {
+            if let start = filter.startDate { startDate = start; filterByDate = true }
+            if let end = filter.endDate { endDate = end; filterByDate = true }
+        }
+    }
+
+    // MARK: Type segments (pill, with "All")
+
+    private var typeSegments: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Type")
+                .finSectionLabel()
+                .padding(.leading, 4)
+            HStack(spacing: 0) {
+                segment(label: "All", isSelected: filter.type == nil) { filter.type = nil }
+                ForEach(TransactionType.allCases) { candidate in
+                    segment(label: candidate.label, isSelected: filter.type == candidate) {
+                        filter.type = candidate
+                    }
+                }
+            }
+            .padding(3)
+            .background(FinTheme.paper, in: Capsule())
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func segment(label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button {
+            FinHaptics.selection()
+            withAnimation(.snappy(duration: 0.25)) { action() }
+        } label: {
+            Text(label)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(isSelected ? .white : FinTheme.ink400)
+                .frame(maxWidth: .infinity)
+                .frame(height: 38)
+                .background {
+                    if isSelected {
+                        Capsule()
+                            .fill(FinTheme.coral)
+                            .shadow(color: FinTheme.coral.opacity(0.28), radius: 8, x: 0, y: 5)
+                    }
+                }
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: Account + Category menus
+
+    private var detailsCard: some View {
+        VStack(spacing: 0) {
+            detailRow(label: "Account") {
+                Menu {
+                    Button("All accounts") { filter.accountID = nil }
+                    ForEach(accounts.grouped, id: \.group) { entry in
+                        Section(entry.group.rawValue) {
+                            ForEach(entry.accounts) { account in
+                                Button(account.name) { filter.accountID = account.id }
                             }
                         }
                     }
+                } label: {
+                    detailValue(accounts.first { $0.id == filter.accountID }?.name ?? "All accounts")
                 }
-
-                Section("Category") {
-                    Picker("Category", selection: $filter.categoryID) {
-                        Text("All categories").tag(UUID?.none)
-                        ForEach(categories) { category in
-                            Text(category.name).tag(UUID?.some(category.id))
+            }
+            Divider().overlay(FinTheme.lineSoft)
+            detailRow(label: "Category") {
+                Menu {
+                    Button("All categories") { filter.categoryID = nil }
+                    ForEach(categories) { category in
+                        Button {
+                            filter.categoryID = category.id
+                        } label: {
+                            Label(category.name, systemImage: category.symbol)
                         }
                     }
+                } label: {
+                    detailValue(categories.first { $0.id == filter.categoryID }?.name ?? "All categories")
                 }
-
-                Section("Date range") {
-                    Toggle("Filter by date", isOn: $filterByDate)
-                    if filterByDate {
-                        DatePicker("From", selection: $startDate, displayedComponents: .date)
-                        DatePicker("To", selection: $endDate, displayedComponents: .date)
-                    }
-                }
-
-                Section {
-                    Button("Clear filters", role: .destructive) {
-                        filter = TransactionFilter()
-                        filterByDate = false
-                        dismiss()
-                    }
-                }
-            }
-            .navigationTitle("Filter")
-            .navigationBarTitleDisplayMode(.inline)
-            .scrollContentBackground(.hidden)
-            .background(FinTheme.canvas)
-            .fontDesign(.rounded)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
-                        filter.startDate = filterByDate ? startDate : nil
-                        filter.endDate = filterByDate ? endDate : nil
-                        dismiss()
-                    }
-                }
-            }
-            .onAppear {
-                if let start = filter.startDate { startDate = start; filterByDate = true }
-                if let end = filter.endDate { endDate = end; filterByDate = true }
             }
         }
-        .presentationDetents([.medium, .large])
+        .padding(.horizontal, 18)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity)
+        .finCard(radius: 16)
+    }
+
+    // MARK: Date range
+
+    private var dateCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Date range")
+                .finSectionLabel()
+                .padding(.leading, 4)
+            VStack(spacing: 0) {
+                Toggle("Filter by date", isOn: $filterByDate.animation(.snappy(duration: 0.25)))
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(FinTheme.ink600)
+                    .tint(FinTheme.coral)
+                    .padding(.vertical, 8)
+                if filterByDate {
+                    Divider().overlay(FinTheme.lineSoft)
+                    detailRow(label: "From") {
+                        DatePicker("", selection: $startDate, displayedComponents: .date)
+                            .labelsHidden()
+                    }
+                    Divider().overlay(FinTheme.lineSoft)
+                    detailRow(label: "To") {
+                        DatePicker("", selection: $endDate, displayedComponents: .date)
+                            .labelsHidden()
+                    }
+                }
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity)
+            .finCard(radius: 16)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: Building blocks
+
+    private func detailRow(label: String, @ViewBuilder value: () -> some View) -> some View {
+        HStack {
+            Text(label)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(FinTheme.ink600)
+            Spacer()
+            value()
+        }
+        .padding(.vertical, 12)
+    }
+
+    private func detailValue(_ text: String) -> some View {
+        HStack(spacing: 6) {
+            Text(text)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(FinTheme.ink)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(FinTheme.ink400)
+        }
+    }
+
+    private func applyAndDismiss() {
+        filter.startDate = filterByDate ? startDate : nil
+        filter.endDate = filterByDate ? endDate : nil
+        dismiss()
     }
 }

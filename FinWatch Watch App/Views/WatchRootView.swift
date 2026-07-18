@@ -6,6 +6,9 @@
 import SwiftUI
 
 struct WatchRootView: View {
+    // Rebuild with the new palette when the phone syncs a theme change.
+    @ObservedObject private var themeManager = ThemeManager.shared
+
     var body: some View {
         NavigationStack {
             #if DEBUG
@@ -22,5 +25,6 @@ struct WatchRootView: View {
             WatchHomeView()
             #endif
         }
+        .id(themeManager.theme)
     }
 }

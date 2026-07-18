@@ -157,7 +157,7 @@ struct CategoryEditorView: View {
                             .font(.system(size: 16, weight: .medium))
                             .frame(width: 40, height: 40)
                             .background(
-                                symbol == candidate ? Color(hex: colorHex) : FinTheme.paperInset,
+                                symbol == candidate ? FinTheme.coral : FinTheme.paperInset,
                                 in: RoundedRectangle(cornerRadius: 10, style: .continuous)
                             )
                             .foregroundStyle(symbol == candidate ? .white : FinTheme.ink600)

@@ -9,6 +9,7 @@ enum AppSettings {
     static let currencyCodeKey = "displayCurrencyCode"
     static let defaultCurrencyCode = "INR"
     static let lastAccountIDKey = "lastAccountID"
+    static let themeKey = "appTheme"
     // Bump the suffix whenever the store name changes so the fresh store
     // re-seeds its default categories.
     static let didSeedCategoriesKey = "didSeedDefaultCategories-v3"

@@ -30,6 +30,7 @@ enum SnapshotBuilder {
         return SyncSnapshot(
             generatedAt: .now,
             currencyCode: AppSettings.currencyCode,
+            themeID: ThemeManager.shared.theme.rawValue,
             accounts: accounts.map(AccountDTO.init),
             categories: categories.map(CategoryDTO.init),
             budgets: budgets.map(BudgetDTO.init),
@@ -213,5 +214,7 @@ enum SnapshotBuilder {
         try context.save()
 
         UserDefaults.standard.set(snapshot.currencyCode, forKey: AppSettings.currencyCodeKey)
+        // Follow the phone's theme (applied on the watch, whose root observes it).
+        ThemeManager.shared.applySynced(snapshot.themeID)
     }
 }

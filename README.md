@@ -33,7 +33,7 @@ A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI*
 - **Budgets** — monthly limit per category with progress bars and over-budget warnings.
 - **Recurring payments & mandates** — subscriptions, EMIs, loan auto-pay, and **recurring transfers** (e.g., a monthly salary sweep or card-bill autopay). Auto-post rules log the transaction when due (with catch-up for missed periods, each posted exactly once); confirm-first rules appear as Upcoming reminders on Home. Loans stop automatically after the last installment.
 - **Display currency** — INR by default, configurable in Settings.
-- **Light theme** enforced app-wide, regardless of the system appearance.
+- **Themes** — pick from **Tino** (warm cream & coral), **Plum** (ghost-white & plum), or **Olive** (cornsilk & olive) in Settings. The whole app recolors instantly, and the choice syncs to the watch so it re-skins too. A light appearance is enforced app-wide regardless of the system setting.
 
 ### WatchOS app
 
@@ -81,8 +81,11 @@ A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI*
 - `-initialTab <0-3>` — opens the iOS app on a specific tab.
 - `-showAddTransaction` / `-showAddRule` — opens the New Transaction or Recurring Payment sheet on launch.
 - `-searchText <query>` — pre-fills the home search field.
-- `-openAccounts` — pushes the Accounts sub-screen from Settings.
+- `-openAccounts` / `-openCategories` — pushes the Accounts or Categories sub-screen from Settings.
+- `-showAddCategory` — opens the category editor on launch.
+- `-showFilter` — opens the transaction filter sheet on launch.
 - `-insightsMonthOffset <±N>` — opens Insights N months from the current one.
+- `-theme <tino|plum|olive>` — forces a theme at launch (iOS and watch).
 - `-autoAddTestTransaction` (watch) — simulates a quick-add and syncs it to the phone.
 - `-watchQuickAdd` / `-watchTransactions` (watch) — opens the quick-add flow or transaction list directly.
 - `-quickAddAccountStep` (watch) — opens the quick-add flow directly on the account step.

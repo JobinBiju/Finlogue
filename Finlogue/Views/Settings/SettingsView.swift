@@ -9,6 +9,7 @@ import SwiftData
 struct SettingsView: View {
     @EnvironmentObject private var store: TransactionStore
     @ObservedObject private var syncEngine = PhoneSyncEngine.shared
+    @ObservedObject private var themeManager = ThemeManager.shared
 
     @Query(sort: \Account.createdAt) private var accounts: [Account]
     @Query(sort: \Category.sortOrder) private var categories: [Category]
@@ -55,6 +56,7 @@ struct SettingsView: View {
                 currencySection
                 manageSection
                 recurringSection
+                appearanceSection
                 syncSection
             }
             .listStyle(.insetGrouped)
@@ -101,6 +103,58 @@ struct SettingsView: View {
             .textCase(nil)
             .finHeaderAligned()
             .padding(.top, 8)
+        }
+    }
+
+    private var appearanceSection: some View {
+        Section {
+            ForEach(AppTheme.allCases) { candidate in
+                Button {
+                    FinHaptics.selection()
+                    themeManager.setTheme(candidate)
+                    PhoneSyncEngine.shared.pushSnapshot()
+                } label: {
+                    HStack(spacing: 12) {
+                        themeSwatch(for: candidate)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(candidate.displayName)
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundStyle(FinTheme.ink)
+                            Text(candidate.subtitle)
+                                .font(.system(size: 12))
+                                .foregroundStyle(FinTheme.ink400)
+                        }
+                        Spacer()
+                        if themeManager.theme == candidate {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(FinTheme.coral)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .listRowBackground(FinTheme.paper)
+                .listRowSeparatorTint(FinTheme.lineSoft)
+            }
+        } header: {
+            SectionHeader("Theme")
+        }
+    }
+
+    /// A trio of dots previewing a theme's canvas, primary, and positive colors.
+    private func themeSwatch(for theme: AppTheme) -> some View {
+        let palette = theme.palette
+        return ZStack {
+            Circle()
+                .fill(Color(hex: palette.canvas))
+                .frame(width: 34, height: 34)
+                .overlay(Circle().strokeBorder(FinTheme.line, lineWidth: 1))
+            HStack(spacing: 2) {
+                Circle().fill(Color(hex: palette.coral)).frame(width: 10, height: 10)
+                Circle().fill(Color(hex: palette.green)).frame(width: 10, height: 10)
+            }
         }
     }
 

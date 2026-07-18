@@ -28,7 +28,16 @@ struct HomeView: View {
         return ""
     }
     @State private var filter = TransactionFilter()
-    @State private var showFilter = false
+
+    /// Test hook: `-showFilter` opens the filter sheet on launch.
+    private static var launchIntoFilter: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("-showFilter")
+        #else
+        return false
+        #endif
+    }
+    @State private var showFilter = Self.launchIntoFilter
     @State private var editingTransaction: Transaction?
     @State private var showAddTransaction = Self.launchIntoAddSheet
 
@@ -252,6 +261,8 @@ struct HomeView: View {
                         chipForeground: FinTheme.coral
                     )
                 }
+                // Match the 14pt tile gap: the header stack's 20pt spacing minus 6.
+                .padding(.top, -6)
                 .transition(.opacity)
                 }
             }

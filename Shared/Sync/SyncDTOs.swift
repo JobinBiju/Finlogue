@@ -133,6 +133,8 @@ struct SyncSnapshot: Codable {
     var version: Int = 1
     var generatedAt: Date
     var currencyCode: String
+    /// Active theme identifier so the watch follows the phone's theme.
+    var themeID: String = AppTheme.tino.rawValue
     var accounts: [AccountDTO]
     var categories: [CategoryDTO]
     var budgets: [BudgetDTO]

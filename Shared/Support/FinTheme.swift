@@ -9,49 +9,52 @@
 
 import SwiftUI
 
+/// Color tokens resolved against the currently-active theme palette.
+/// Screens keep using `FinTheme.coral` etc.; switching the theme changes
+/// what these return (see `ThemeManager` / `ThemePalette`).
 enum FinTheme {
-    // MARK: Brand
+    private static var p: ThemePalette { ThemeManager.activePalette }
 
-    static let coral = Color(hex: "#E85D28")      // primary
-    static let coral600 = Color(hex: "#CE4C1C")
-    static let amber = Color(hex: "#F3B63D")      // balance card yellow
-    static let amber500 = Color(hex: "#E9A21F")
+    // MARK: Brand
+    static var coral: Color { Color(hex: p.coral) }        // primary
+    static var coral600: Color { Color(hex: p.coral600) }
+    static var amber: Color { Color(hex: p.amber) }        // balance card
+    static var amber500: Color { Color(hex: p.amber500) }
 
     // MARK: Money semantics
-
-    static let lime100 = Color(hex: "#EAF3CE")
-    static let lime300 = Color(hex: "#C0DE64")
-    static let lime400 = Color(hex: "#A6CF43")
-    static let green = Color(hex: "#55963B")      // positive
-    static let red400 = Color(hex: "#E4552B")
-    static let red = Color(hex: "#D23F1C")        // negative
+    static var lime100: Color { Color(hex: p.lime100) }
+    static var lime300: Color { Color(hex: p.lime300) }
+    static var lime400: Color { Color(hex: p.lime400) }
+    static var green: Color { Color(hex: p.green) }        // positive
+    static var red400: Color { Color(hex: p.red400) }
+    static var red: Color { Color(hex: p.red) }            // negative
 
     // MARK: Support accents
+    static var blue: Color { Color(hex: p.blue) }
+    static var violet: Color { Color(hex: p.violet) }
 
-    static let blue = Color(hex: "#2E6BD6")
-    static let violet = Color(hex: "#B96BE0")
-
-    // MARK: Warm neutrals
-
-    static let canvas = Color(hex: "#F3E9DA")     // page background
-    static let paper = Color(hex: "#FCF9F3")      // card surface
-    static let paperInset = Color(hex: "#F7F2E9") // inset / secondary surface
-    static let ink = Color(hex: "#1A1815")        // near-black text / dark pills
-    static let ink600 = Color(hex: "#57534B")     // secondary text
-    static let ink400 = Color(hex: "#8C877B")     // muted text
-    static let line = Color(hex: "#E7DFD1")
-    static let lineSoft = Color(hex: "#EFE8DB")
-    static let cream = Color(hex: "#F3E9DA")      // text on dark
+    // MARK: Neutrals
+    static var canvas: Color { Color(hex: p.canvas) }      // page background
+    static var paper: Color { Color(hex: p.paper) }        // card surface
+    static var paperInset: Color { Color(hex: p.paperInset) }
+    static var ink: Color { Color(hex: p.ink) }            // near-black text
+    static var ink600: Color { Color(hex: p.ink600) }      // secondary text
+    static var ink400: Color { Color(hex: p.ink400) }      // muted text
+    static var line: Color { Color(hex: p.line) }
+    static var lineSoft: Color { Color(hex: p.lineSoft) }
+    static var cream: Color { Color(hex: p.cream) }        // text on dark
 
     // MARK: Soft tinted surfaces
+    static var tintLime: Color { Color(hex: p.tintLime) }
+    static var tintPeach: Color { Color(hex: p.tintPeach) }
+    static var tintAmber: Color { Color(hex: p.tintAmber) }
+    static var tintCoral: Color { Color(hex: p.tintCoral) }
 
-    static let tintLime = Color(hex: "#E4EFC0")
-    static let tintPeach = Color(hex: "#F6E0CE")
-    static let tintAmber = Color(hex: "#FBEBC7")
-    static let tintCoral = Color(hex: "#FBDECF")
-
-    /// Warm diffuse card shadow color.
-    static let shadowTint = Color(hex: "#46341E")
+    // MARK: Effects & misc
+    static var shadowTint: Color { Color(hex: p.shadowTint) }
+    static var watchGradientTop: Color { Color(hex: p.watchGradientTop) }
+    static var slate: Color { Color(hex: p.slate) }        // transfer chips
+    static var mutedIcon: Color { Color(hex: p.mutedIcon) } // uncategorized icon
 }
 
 extension View {

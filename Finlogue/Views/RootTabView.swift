@@ -18,6 +18,10 @@ final class TabBarVisibility: ObservableObject {
 struct RootTabView: View {
     @State private var selection = initialTab
     @StateObject private var tabBarVisibility = TabBarVisibility()
+    // Observed so a theme change re-runs body; `.id(theme)` below then rebuilds
+    // the content with the new palette. `selection` lives above the id, so the
+    // current tab survives the swap.
+    @ObservedObject private var themeManager = ThemeManager.shared
 
     /// Test hook: `-initialTab N` launch argument opens a specific tab.
     private static var initialTab: Int {
@@ -33,6 +37,14 @@ struct RootTabView: View {
     }
 
     var body: some View {
+        themedContent
+            // Below the .id boundary so system controls (pickers, etc.) pick up
+            // the new primary when the theme changes.
+            .tint(FinTheme.coral)
+            .id(themeManager.theme)
+    }
+
+    private var themedContent: some View {
         ZStack {
             // Solid canvas behind the crossfade so the window's white never
             // shows through while both tabs are semi-transparent.

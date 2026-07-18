@@ -65,6 +65,7 @@ struct InsightsView: View {
                         )
                         .listRowBackground(Color.clear)
                     }
+                    .padding(.vertical, 64)
                 } else {
                     categoryBreakdownSection
                     trendSection

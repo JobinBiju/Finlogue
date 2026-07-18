@@ -34,6 +34,7 @@ struct BudgetsView: View {
                         )
                         .listRowBackground(Color.clear)
                     }
+                    .padding(.vertical, 56)
                 } else {
                     Section {
                         ForEach(progress, id: \.budget.id) { entry in

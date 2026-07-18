@@ -26,7 +26,7 @@ struct WatchTransactionListView: View {
                     "No transactions",
                     systemImage: "creditcard",
                     description: Text("Add one here or on your iPhone.")
-                )
+                ).padding(.vertical, 16)
             } else {
                 List {
                     ForEach(groupedTransactions, id: \.day) { group in
@@ -56,7 +56,7 @@ struct WatchTransactionListView: View {
                 .frame(width: 24, height: 24)
                 .background(
                     transaction.type == .transfer
-                        ? Color(hex: "#64748B")
+                        ? FinTheme.slate
                         : Color(hex: transaction.category?.colorHex ?? "#94A3B8"),
                     in: Circle()
                 )
