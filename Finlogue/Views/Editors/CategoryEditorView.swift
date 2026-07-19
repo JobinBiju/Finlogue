@@ -20,11 +20,28 @@ struct CategoryEditorView: View {
     @State private var colorHex = "#4F8EF7"
 
     private static let symbols = [
-        "tag", "fork.knife", "cart", "car", "bag", "bolt", "film", "cross.case",
-        "house", "airplane", "gift", "book", "gamecontroller", "pawprint",
-        "graduationcap", "wrench.and.screwdriver", "briefcase", "banknote",
-        "indianrupeesign.circle", "arrow.uturn.backward.circle", "plus.circle",
-        "wifi", "phone", "tram", "fuelpump", "pills", "tshirt", "scissors",
+        // Food & drink
+        "fork.knife", "cup.and.saucer.fill", "takeoutbag.and.cup.and.straw.fill",
+        "wineglass.fill", "birthday.cake.fill", "carrot.fill",
+        // Shopping
+        "cart", "bag", "handbag.fill", "gift.fill", "tshirt", "giftcard.fill",
+        // Transport
+        "car", "bus.fill", "tram", "bicycle", "airplane", "fuelpump", "parkingsign.circle.fill",
+        // Home & bills
+        "house", "bolt.fill", "drop.fill", "flame.fill", "lightbulb.fill", "wifi",
+        "phone", "trash.fill", "wrench.and.screwdriver",
+        // Health & fitness
+        "cross.case", "pills", "heart.fill", "stethoscope", "figure.run", "dumbbell.fill",
+        // Entertainment
+        "film", "gamecontroller", "music.note", "tv", "headphones", "ticket.fill",
+        // Money & finance
+        "banknote", "creditcard.fill", "building.columns.fill", "indianrupeesign.circle",
+        "chart.line.uptrend.xyaxis", "percent", "arrow.uturn.backward.circle",
+        // Work & study
+        "briefcase", "book", "graduationcap", "laptopcomputer", "pencil", "newspaper.fill",
+        // Travel & personal
+        "suitcase.fill", "beach.umbrella.fill", "map.fill", "pawprint", "scissors",
+        "eyeglasses", "leaf.fill", "gift", "star.fill", "sparkles", "tag", "plus.circle",
     ]
 
     private static let colors = [

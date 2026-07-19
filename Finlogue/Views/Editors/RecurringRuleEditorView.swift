@@ -17,6 +17,7 @@ struct RecurringRuleEditorView: View {
 
     @Query(sort: \Category.sortOrder) private var categories: [Category]
     @Query(sort: \Account.createdAt) private var accounts: [Account]
+    @Query(sort: \Person.name) private var people: [Person]
 
     @State private var name = ""
     @State private var amountText = ""
@@ -29,6 +30,8 @@ struct RecurringRuleEditorView: View {
     @State private var isLoan = false
     @State private var installmentsText = ""
     @State private var autoPost = true
+    @State private var splitDrafts: [SplitDraft] = []
+    @State private var showSplitEditor = false
 
     private var typeCategories: [Category] {
         categories.filter { $0.type == type }
@@ -79,6 +82,19 @@ struct RecurringRuleEditorView: View {
         if result != amountText {
             amountText = result
         }
+    }
+
+    private var showsSplit: Bool { type == .expense }
+    private var splitTotalValue: Double { amount ?? 0 }
+    private var othersShareDraft: Double {
+        splitDrafts.reduce(0) { $0 + max(0, $1.amount) }
+    }
+    private var myShareDraft: Double { max(0, splitTotalValue - othersShareDraft) }
+
+    private var splitSummary: String {
+        guard !splitDrafts.isEmpty else { return "Just me" }
+        let count = splitDrafts.count
+        return "\(count) \(count == 1 ? "person" : "people") · you \(CurrencyFormatter.string(myShareDraft))"
     }
 
     private var canSave: Bool {
@@ -140,6 +156,9 @@ struct RecurringRuleEditorView: View {
         }
         .background(FinTheme.canvas)
         .fontDesign(.rounded)
+        .sheet(isPresented: $showSplitEditor) {
+            SplitEditorView(splits: $splitDrafts, total: splitTotalValue)
+        }
         .onAppear(perform: populate)
         .onChange(of: type) { _, newType in
             if let id = selectedCategoryID,
@@ -299,6 +318,18 @@ struct RecurringRuleEditorView: View {
                         }
                     }
                 }
+                if showsSplit {
+                    Divider().overlay(FinTheme.lineSoft)
+                    Button {
+                        FinHaptics.tap()
+                        showSplitEditor = true
+                    } label: {
+                        detailRow(label: "Split") {
+                            detailValue(splitSummary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
                 Divider().overlay(FinTheme.lineSoft)
                 Toggle("Post automatically", isOn: $autoPost)
                     .font(.system(size: 15, weight: .medium))
@@ -392,10 +423,21 @@ struct RecurringRuleEditorView: View {
             installmentsText = "\(remaining)"
         }
         autoPost = rule.autoPost
+        splitDrafts = (rule.splits ?? []).compactMap { split in
+            guard let personID = split.person?.id else { return nil }
+            return SplitDraft(personID: personID, amount: split.shareAmount)
+        }
     }
 
     private func save() {
         guard let amount else { return }
+        let splits: [TransactionStore.SplitShare] = showsSplit
+            ? splitDrafts.compactMap { draft in
+                guard draft.amount > 0, let person = people.first(where: { $0.id == draft.personID })
+                else { return nil }
+                return (person: person, amount: draft.amount)
+            }
+            : []
         store.saveRecurringRule(
             rule,
             name: name.trimmingCharacters(in: .whitespaces),
@@ -407,7 +449,8 @@ struct RecurringRuleEditorView: View {
             frequency: frequency,
             dayAnchor: startDate,
             remainingInstallments: isLoan ? Int(installmentsText) : nil,
-            autoPost: autoPost
+            autoPost: autoPost,
+            splits: splits
         )
         FinHaptics.success()
         dismiss()

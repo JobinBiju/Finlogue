@@ -23,7 +23,11 @@ struct TransactionFilter: Equatable {
         if let type, transaction.type != type { return false }
         if let accountID, transaction.account?.id != accountID { return false }
         if let categoryID, transaction.category?.id != categoryID { return false }
-        if let personID, transaction.person?.id != personID { return false }
+        if let personID {
+            // Match when the person is a settlement payer or shares the expense.
+            let inSplits = (transaction.splits ?? []).contains { $0.person?.id == personID }
+            if transaction.person?.id != personID && !inSplits { return false }
+        }
         if let startDate, transaction.date < Calendar.current.startOfDay(for: startDate) { return false }
         if let endDate {
             let endOfDay = Calendar.current.date(

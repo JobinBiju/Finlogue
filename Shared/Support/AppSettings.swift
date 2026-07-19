@@ -13,6 +13,8 @@ enum AppSettings {
     // Bump the suffix whenever the store name changes so the fresh store
     // re-seeds its default categories.
     static let didSeedCategoriesKey = "didSeedDefaultCategories-v3"
+    // One-time conversion of legacy single-person expense tags into splits.
+    static let didMigratePersonToSplitsKey = "didMigratePersonToSplits-v3"
 
     static var currencyCode: String {
         UserDefaults.standard.string(forKey: currencyCodeKey) ?? defaultCurrencyCode

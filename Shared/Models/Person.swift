@@ -18,10 +18,20 @@ final class Person {
     var createdAt: Date
     var updatedAt: Date
 
-    /// Transactions tagged to this person. Declaring the inverse here lets
-    /// SwiftData nullify them on delete instead of leaving dangling references.
+    /// Settlement (repayment) transactions attributed to this person. Declaring
+    /// the inverse here lets SwiftData nullify them on delete instead of leaving
+    /// dangling references.
     @Relationship(deleteRule: .nullify, inverse: \Transaction.person)
     var transactions: [Transaction]? = []
+
+    /// This person's shares across all shared transactions. Cascade-deleted
+    /// with the person.
+    @Relationship(deleteRule: .cascade, inverse: \TransactionSplit.person)
+    var splits: [TransactionSplit]? = []
+
+    /// This person's share templates on recurring rules. Not debts.
+    @Relationship(deleteRule: .cascade, inverse: \RecurringSplit.person)
+    var recurringSplits: [RecurringSplit]? = []
 
     init(
         id: UUID = UUID(),
@@ -36,6 +46,24 @@ final class Person {
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
+
+    // MARK: Ledger
+
+    /// Total this person owes you across every shared transaction.
+    var owed: Double {
+        (splits ?? []).reduce(0) { $0 + $1.shareAmount }
+    }
+
+    /// Total this person has paid back (settlement transactions).
+    var repaid: Double {
+        (transactions ?? [])
+            .filter { $0.isSettlement }
+            .reduce(0) { $0 + $1.amount }
+    }
+
+    /// What's still outstanding. Positive = they owe you; negative = you owe
+    /// them (overpaid).
+    var outstanding: Double { owed - repaid }
 
     /// Two-letter initials for the avatar badge.
     var initials: String {

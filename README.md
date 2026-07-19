@@ -1,6 +1,6 @@
 # Finlogue
 
-A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI**, **SwiftData**, and **WatchConnectivity**. Log payments from bank accounts, credit cards, and cash; move money between your own accounts with transfers; record card fees; tag reimbursable spending to friends and family; categorize spending; set budgets; automate recurring payments, EMIs, and card bills — and do quick entry right from your wrist, with transactions syncing both ways between phone and watch.
+A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI**, **SwiftData**, and **WatchConnectivity**. Log payments from bank accounts, credit cards, and cash; move money between your own accounts with transfers; record card fees; split bills with friends and track who owes you back; categorize spending; set budgets; automate recurring payments, EMIs, and card bills — and do quick entry right from your wrist, with transactions syncing both ways between phone and watch.
 
 ---
 
@@ -11,6 +11,12 @@ A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI*
 | Home | Insights | **Budgets** | **Settings** |
 | :---: | :---: | :---: | :---: |
 | <img src="Screenshots/ios-home.png" alt="Home" width="180"> | <img src="Screenshots/ios-insights.png" alt="Insights" width="180"> | <img src="Screenshots/ios-budgets.png" alt="Budgets" width="180"> | <img src="Screenshots/ios-settings.png" alt="Settings" width="180"> |
+
+### Shared expenses & people
+
+| People | **Ledger & repayments** |
+| :---: | :---: |
+| <img src="Screenshots/ios-people.png" alt="People" width="180"> | <img src="Screenshots/ios-people-ledger.png" alt="Person ledger" width="180"> |
 
 ### WatchOS
 
@@ -26,14 +32,14 @@ A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI*
 
 - **Transactions** — add, edit, delete; income, expense, or **transfer**; notes; grouped by day with search and filters (type, account, category, **person**, date range). The name field suggests previously logged names as you type — tapping a suggestion also fills in that transaction's category, account, and amount for two-tap repeat entries.
 - **Charges** — record extra fees on top of the amount (e.g. a credit-card surcharge). The total `amount + charges` is what's deducted from the account and reflected in the credit-card billing cycle; the fee shows as a lighter line beneath the amount on each transaction.
-- **People** — tag a transaction to a friend or family member when you spend on their behalf. Tagged transactions still move your account balance (the money left), but are **excluded from insights, budgets, and your monthly spent** since you'll be paid back. Manage people in Settings (name + avatar colour) or add one inline while entering a transaction, and filter the list down to a single person.
+- **Split expenses & people** — split a bill among friends by entering each person's exact share; your share is the remainder. Only **your share** counts toward the Spent tile, insights, and budgets — the amounts you fronted are excluded because you'll be paid back — while the full bill still leaves your account. Each person has a **ledger** (Settings → People): their outstanding balance, every share they owe, and every repayment. **Record repayments** (partial or full) from a person's screen — logged as a settlement that returns money to an account but is kept out of income stats. Manage people (name + avatar colour) or add one inline while splitting, and filter the transaction list by person.
 - **Transfers** — first-class moves between your own accounts (salary sweeps, credit-card bill payments). Both account balances update, but transfers are excluded from income/spent stats, charts, and budgets, so analytics reflect real earning and spending only.
 - **Accounts** — bank, credit card, and cash accounts, grouped as **Banks / Cards / Others** everywhere they're listed. Balances are *computed* from transactions (no drift). Bank-brand gradient cards (HDFC, Axis, Federal Bank) on the Home carousel with snap scrolling.
 - **Credit cards** — credit limit with a utilization gauge and available credit; editable **current outstanding** (rebase to match your real statement anytime); optional **statement day** for the billing cycle, which splits the outstanding into **billed vs unbilled** on the account card. Paying a bill (a transfer into the card) drains the billed amount first.
 - **Categories** — customizable with SF Symbol icons and colors; sensible defaults (including Investments) seeded on first launch.
 - **Insights** — Swift Charts with a nav-bar month switcher: spending-by-category donut with an in-place crossfading legend, cumulative daily spend trend, and income vs expense across the last 6 months. Subtle animations throughout the app — rolling numeric totals, animated budget bars, chart crossfades between months.
 - **Budgets** — monthly limit per category with progress bars and over-budget warnings.
-- **Recurring payments & mandates** — subscriptions, EMIs, loan auto-pay, and **recurring transfers** (e.g., a monthly salary sweep or card-bill autopay). Auto-post rules log the transaction when due (with catch-up for missed periods, each posted exactly once); confirm-first rules appear as Upcoming reminders on Home. Loans stop automatically after the last installment.
+- **Recurring payments & mandates** — subscriptions, EMIs, loan auto-pay, and **recurring transfers** (e.g., a monthly salary sweep or card-bill autopay). Auto-post rules log the transaction when due (with catch-up for missed periods, each posted exactly once); confirm-first rules appear as Upcoming reminders on Home. Loans stop automatically after the last installment. Recurring expenses can also be **split** with people, so each posted occurrence carries the same shares (e.g. a subscription a flatmate splits with you).
 - **Display currency** — INR by default, configurable in Settings.
 - **Themes** — pick from **Tino** (warm cream & coral), **Plum** (ghost-white & plum), **Olive** (cornsilk & olive), or **Ocean** (alice-blue & teal) in Settings. The whole app recolors instantly, and the choice syncs to the watch so it re-skins too. A light appearance is enforced app-wide regardless of the system setting.
 
@@ -100,8 +106,9 @@ A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI*
 Finlogue/
 ├── Shared/                      # Compiled into BOTH targets
 │   ├── Models/                  # SwiftData @Models: Transaction (transfers, charges,
-│   │                            # person tag), Account (groups, billing cycle),
-│   │                            # Category, Budget, RecurringRule, Person (+ enums)
+│   │                            # splits, settlements), Account (groups, billing
+│   │                            # cycle), Category, Budget, RecurringRule, Person,
+│   │                            # TransactionSplit (+ enums)
 │   ├── Sync/                    # Codable DTOs, SnapshotBuilder,
 │   │                            # PhoneSyncEngine (iOS), WatchSyncEngine (watchOS)
 │   └── Support/                 # AppSettings, CurrencyFormatter, Color(hex:)

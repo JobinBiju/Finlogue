@@ -97,6 +97,7 @@ final class PhoneSyncEngine: NSObject, ObservableObject {
                 toAccount: toAccount,
                 category: category,
                 person: person,
+                isSettlement: dto.isSettlement,
                 createdAt: dto.createdAt,
                 updatedAt: dto.updatedAt
             )

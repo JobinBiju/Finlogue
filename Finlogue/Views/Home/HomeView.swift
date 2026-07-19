@@ -70,20 +70,20 @@ struct HomeView: View {
         return transactions.filter { $0.date >= interval.start && $0.date < interval.end }
     }
 
-    /// Person-tagged transactions are reimbursable, so they're left out of the
-    /// income/spent tiles (they still move the account balance).
-    private var ownMonthTransactions: [Transaction] {
-        monthTransactions.filter { $0.person == nil }
-    }
-
+    /// Settlement (repayment) transactions are reimbursements, not real income,
+    /// so they're left out of the tiles (they still move the account balance).
     private var monthIncome: Double {
-        ownMonthTransactions.filter { $0.type == .income }.reduce(0) { $0 + $1.amount }
+        monthTransactions
+            .filter { $0.type == .income && !$0.isSettlement }
+            .reduce(0) { $0 + $1.amount }
     }
 
+    /// Only your own share of each expense counts as spending; amounts split out
+    /// to friends are excluded.
     private var monthExpense: Double {
-        ownMonthTransactions
+        monthTransactions
             .filter { $0.type == .expense }
-            .reduce(0) { $0 + $1.amount + $1.charges }
+            .reduce(0) { $0 + $1.myShare }
     }
 
     /// Net-worth movement this month, as a percentage of where the month started.

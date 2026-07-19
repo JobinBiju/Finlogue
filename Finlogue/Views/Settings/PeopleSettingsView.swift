@@ -16,8 +16,8 @@ struct PeopleSettingsView: View {
 
     @Query(sort: \Person.name) private var people: [Person]
 
-    @State private var editingPerson: Person?
     @State private var showAddPerson = Self.launchIntoAddPerson
+    @State private var selectedPerson: Person?
 
     /// Test hook: `-showAddPerson` opens the person editor on launch.
     private static var launchIntoAddPerson: Bool {
@@ -47,7 +47,7 @@ struct PeopleSettingsView: View {
                         personRow(person)
                     }
                 } footer: {
-                    Text("Tagged transactions still move your balance, but are left out of insights and budgets since you'll be paid back.")
+                    Text("Split expenses still move your balance, but only your share counts toward insights and budgets — you'll be paid back for the rest.")
                         .font(.system(size: 12))
                         .foregroundStyle(FinTheme.ink400)
                 }
@@ -61,9 +61,17 @@ struct PeopleSettingsView: View {
         .contentMargins(.bottom, 24, for: .scrollContent)
         .toolbar(.hidden, for: .navigationBar)
         .onAppear { tabBarVisibility.isHidden = true }
-        .onDisappear { tabBarVisibility.isHidden = false }
+        .onDisappear {
+            // Only reveal the tab bar when leaving back to Settings — not when
+            // pushing into a person's detail (selectedPerson set).
+            if selectedPerson == nil {
+                tabBarVisibility.isHidden = false
+            }
+        }
         .sheet(isPresented: $showAddPerson) { PersonEditorView() }
-        .sheet(item: $editingPerson) { PersonEditorView(person: $0) }
+        .navigationDestination(item: $selectedPerson) { person in
+            PersonDetailView(person: person)
+        }
     }
 
     private var headerSection: some View {
@@ -108,28 +116,31 @@ struct PeopleSettingsView: View {
     }
 
     private func personRow(_ person: Person) -> some View {
-        HStack(spacing: 12) {
-            Text(person.initials)
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(.white)
-                .frame(width: 34, height: 34)
-                .background(Color(hex: person.colorHex), in: Circle())
-            Text(person.name)
-                .font(.system(size: 15, weight: .medium))
-                .foregroundStyle(FinTheme.ink)
-            Spacer()
-            if let count = person.transactions?.count, count > 0 {
-                Text("\(count)")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(FinTheme.ink400)
-                    .monospacedDigit()
+        Button {
+            FinHaptics.tap()
+            selectedPerson = person
+        } label: {
+            HStack(spacing: 12) {
+                Text(person.initials)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 34, height: 34)
+                    .background(Color(hex: person.colorHex), in: Circle())
+                Text(person.name)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(FinTheme.ink)
+                Spacer()
+                outstandingLabel(person)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(FinTheme.ink400.opacity(0.6))
             }
+            .padding(.vertical, 2)
+            .contentShape(Rectangle())
         }
-        .padding(.vertical, 2)
+        .buttonStyle(.plain)
         .listRowBackground(FinTheme.paper)
         .listRowSeparatorTint(FinTheme.lineSoft)
-        .contentShape(Rectangle())
-        .onTapGesture { editingPerson = person }
         .swipeActions(edge: .trailing) {
             Button(role: .destructive) {
                 FinHaptics.warning()
@@ -137,6 +148,21 @@ struct PeopleSettingsView: View {
             } label: {
                 Label("Delete", systemImage: "trash")
             }
+        }
+    }
+
+    @ViewBuilder
+    private func outstandingLabel(_ person: Person) -> some View {
+        let balance = person.outstanding
+        if abs(balance) < 0.005 {
+            Text("Settled")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(FinTheme.ink400)
+        } else {
+            Text("\(balance < 0 ? "−" : "")\(CurrencyFormatter.string(abs(balance)))")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(balance < 0 ? FinTheme.red : FinTheme.green)
+                .monospacedDigit()
         }
     }
 }

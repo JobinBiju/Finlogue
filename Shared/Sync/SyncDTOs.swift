@@ -66,6 +66,20 @@ struct PersonDTO: Codable, Identifiable {
     }
 }
 
+struct TransactionSplitDTO: Codable, Identifiable {
+    var id: UUID
+    var transactionID: UUID?
+    var personID: UUID?
+    var shareAmount: Double
+
+    init(from split: TransactionSplit) {
+        id = split.id
+        transactionID = split.transaction?.id
+        personID = split.person?.id
+        shareAmount = split.shareAmount
+    }
+}
+
 struct TransactionDTO: Codable, Identifiable {
     var id: UUID
     var type: TransactionType
@@ -78,6 +92,7 @@ struct TransactionDTO: Codable, Identifiable {
     var toAccountID: UUID?
     var categoryID: UUID?
     var personID: UUID?
+    var isSettlement: Bool
     var createdAt: Date
     var updatedAt: Date
 
@@ -93,17 +108,18 @@ struct TransactionDTO: Codable, Identifiable {
         toAccountID = transaction.toAccount?.id
         categoryID = transaction.category?.id
         personID = transaction.person?.id
+        isSettlement = transaction.isSettlement
         createdAt = transaction.createdAt
         updatedAt = transaction.updatedAt
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, type, name, amount, charges, date, note
-        case accountID, toAccountID, categoryID, personID, createdAt, updatedAt
+        case accountID, toAccountID, categoryID, personID, isSettlement, createdAt, updatedAt
     }
 
-    // Custom decode so snapshots from older builds (no charges/personID) still
-    // load.
+    // Custom decode so snapshots from older builds (no charges/personID/
+    // isSettlement) still load.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
@@ -117,6 +133,7 @@ struct TransactionDTO: Codable, Identifiable {
         toAccountID = try container.decodeIfPresent(UUID.self, forKey: .toAccountID)
         categoryID = try container.decodeIfPresent(UUID.self, forKey: .categoryID)
         personID = try container.decodeIfPresent(UUID.self, forKey: .personID)
+        isSettlement = try container.decodeIfPresent(Bool.self, forKey: .isSettlement) ?? false
         createdAt = try container.decode(Date.self, forKey: .createdAt)
         updatedAt = try container.decode(Date.self, forKey: .updatedAt)
     }
@@ -185,10 +202,11 @@ struct SyncSnapshot: Codable {
     var recurringRules: [RecurringRuleDTO]
     var transactions: [TransactionDTO]
     var people: [PersonDTO] = []
+    var splits: [TransactionSplitDTO] = []
 
     private enum CodingKeys: String, CodingKey {
         case version, generatedAt, currencyCode, themeID
-        case accounts, categories, budgets, recurringRules, transactions, people
+        case accounts, categories, budgets, recurringRules, transactions, people, splits
     }
 
     init(
@@ -201,7 +219,8 @@ struct SyncSnapshot: Codable {
         budgets: [BudgetDTO],
         recurringRules: [RecurringRuleDTO],
         transactions: [TransactionDTO],
-        people: [PersonDTO] = []
+        people: [PersonDTO] = [],
+        splits: [TransactionSplitDTO] = []
     ) {
         self.version = version
         self.generatedAt = generatedAt
@@ -213,9 +232,10 @@ struct SyncSnapshot: Codable {
         self.recurringRules = recurringRules
         self.transactions = transactions
         self.people = people
+        self.splits = splits
     }
 
-    // Tolerate snapshots from older builds that predate `people`.
+    // Tolerate snapshots from older builds that predate `people` / `splits`.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         version = try container.decodeIfPresent(Int.self, forKey: .version) ?? 1
@@ -229,6 +249,7 @@ struct SyncSnapshot: Codable {
         recurringRules = try container.decode([RecurringRuleDTO].self, forKey: .recurringRules)
         transactions = try container.decode([TransactionDTO].self, forKey: .transactions)
         people = try container.decodeIfPresent([PersonDTO].self, forKey: .people) ?? []
+        splits = try container.decodeIfPresent([TransactionSplitDTO].self, forKey: .splits) ?? []
     }
 }
 

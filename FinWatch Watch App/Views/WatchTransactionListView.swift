@@ -48,18 +48,11 @@ struct WatchTransactionListView: View {
 
     private func row(_ transaction: Transaction) -> some View {
         HStack(spacing: 8) {
-            Image(systemName: transaction.type == .transfer
-                  ? "arrow.left.arrow.right"
-                  : (transaction.category?.symbol ?? "questionmark"))
+            Image(systemName: iconSymbol(transaction))
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 24, height: 24)
-                .background(
-                    transaction.type == .transfer
-                        ? FinTheme.slate
-                        : Color(hex: transaction.category?.colorHex ?? "#94A3B8"),
-                    in: Circle()
-                )
+                .background(iconColor(transaction), in: Circle())
             VStack(alignment: .leading, spacing: 0) {
                 Text(transaction.name)
                     .font(.system(size: 14, weight: .medium))
@@ -83,6 +76,18 @@ struct WatchTransactionListView: View {
                 .monospacedDigit()
         }
         .padding(.vertical, 4)
+    }
+
+    private func iconSymbol(_ transaction: Transaction) -> String {
+        if transaction.isSettlement { return "arrow.down.left" }
+        if transaction.type == .transfer { return "arrow.left.arrow.right" }
+        return transaction.category?.symbol ?? "questionmark"
+    }
+
+    private func iconColor(_ transaction: Transaction) -> Color {
+        if transaction.isSettlement { return FinTheme.green }
+        if transaction.type == .transfer { return FinTheme.slate }
+        return Color(hex: transaction.category?.colorHex ?? "#94A3B8")
     }
 
     private func sectionTitle(for day: Date) -> String {

@@ -22,6 +22,7 @@ final class TransactionStore: ObservableObject {
             name: "Investments", type: .expense,
             symbol: "chart.line.uptrend.xyaxis", colorHex: "#0EA5E9"
         )
+        migratePersonTagsToSplitsIfNeeded()
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-seedSampleData") {
             seedSampleData()
@@ -36,6 +37,9 @@ final class TransactionStore: ObservableObject {
 
     // MARK: Transactions
 
+    /// A friend's share of a transaction, as passed from the editor.
+    typealias SplitShare = (person: Person, amount: Double)
+
     func addTransaction(
         type: TransactionType,
         name: String,
@@ -46,17 +50,17 @@ final class TransactionStore: ObservableObject {
         account: Account?,
         toAccount: Account? = nil,
         category: Category?,
-        person: Person? = nil
+        splits: [SplitShare] = []
     ) {
         let transaction = Transaction(
             type: type, name: name, amount: amount,
             charges: max(0, charges), date: date,
             note: note, account: account,
             toAccount: type == .transfer ? toAccount : nil,
-            category: type == .transfer ? nil : category,
-            person: person
+            category: type == .transfer ? nil : category
         )
         context.insert(transaction)
+        applySplits(splits, to: transaction, type: type)
         persist()
     }
 
@@ -71,7 +75,7 @@ final class TransactionStore: ObservableObject {
         account: Account?,
         toAccount: Account? = nil,
         category: Category?,
-        person: Person? = nil
+        splits: [SplitShare] = []
     ) {
         transaction.type = type
         transaction.name = name
@@ -82,13 +86,54 @@ final class TransactionStore: ObservableObject {
         transaction.account = account
         transaction.toAccount = type == .transfer ? toAccount : nil
         transaction.category = type == .transfer ? nil : category
-        transaction.person = person
         transaction.updatedAt = .now
+        applySplits(splits, to: transaction, type: type)
         persist()
+    }
+
+    /// Replaces a transaction's splits with the given shares. Transfers can't be
+    /// split, and zero/negative shares are dropped.
+    private func applySplits(_ splits: [SplitShare], to transaction: Transaction, type: TransactionType) {
+        for existing in transaction.splits ?? [] {
+            context.delete(existing)
+        }
+        transaction.splits = []
+        guard type != .transfer else { return }
+        for share in splits where share.amount > 0 {
+            let split = TransactionSplit(
+                transaction: transaction, person: share.person, shareAmount: share.amount
+            )
+            context.insert(split)
+        }
     }
 
     func delete(_ transaction: Transaction) {
         context.delete(transaction)
+        persist()
+    }
+
+    /// Logs a repayment from a person as a settlement income transaction: it
+    /// returns money to the account and reduces the person's outstanding, but
+    /// is kept out of income stats and insights.
+    func recordRepayment(
+        person: Person,
+        amount: Double,
+        date: Date,
+        account: Account?,
+        note: String?
+    ) {
+        let transaction = Transaction(
+            type: .income,
+            name: "Repayment · \(person.name)",
+            amount: amount,
+            date: date,
+            note: note,
+            account: account,
+            category: nil,
+            person: person,
+            isSettlement: true
+        )
+        context.insert(transaction)
         persist()
     }
 
@@ -212,10 +257,12 @@ final class TransactionStore: ObservableObject {
         frequency: RecurrenceFrequency,
         dayAnchor: Date,
         remainingInstallments: Int?,
-        autoPost: Bool
+        autoPost: Bool,
+        splits: [SplitShare] = []
     ) {
         let destination = type == .transfer ? toAccount : nil
         let ruleCategory = type == .transfer ? nil : category
+        let target: RecurringRule
         if let rule {
             rule.name = name
             rule.amount = amount
@@ -228,15 +275,33 @@ final class TransactionStore: ObservableObject {
             rule.remainingInstallments = remainingInstallments
             rule.autoPost = autoPost
             rule.updatedAt = .now
+            target = rule
         } else {
-            context.insert(RecurringRule(
+            let created = RecurringRule(
                 name: name, amount: amount, type: type, account: account,
                 toAccount: destination, category: ruleCategory,
                 frequency: frequency, dayAnchor: dayAnchor,
                 remainingInstallments: remainingInstallments, autoPost: autoPost
+            )
+            context.insert(created)
+            target = created
+        }
+        applyRuleSplits(splits, to: target, type: type)
+        persist()
+    }
+
+    /// Replaces a rule's split templates. Only expenses can be split.
+    private func applyRuleSplits(_ splits: [SplitShare], to rule: RecurringRule, type: TransactionType) {
+        for existing in rule.splits ?? [] {
+            context.delete(existing)
+        }
+        rule.splits = []
+        guard type == .expense else { return }
+        for share in splits where share.amount > 0 {
+            context.insert(RecurringSplit(
+                rule: rule, person: share.person, shareAmount: share.amount
             ))
         }
-        persist()
     }
 
     func delete(_ rule: RecurringRule) {
@@ -257,6 +322,13 @@ final class TransactionStore: ObservableObject {
             category: rule.category
         )
         context.insert(transaction)
+        // Copy the rule's split templates onto this occurrence as real splits.
+        for template in rule.splits ?? [] {
+            guard let person = template.person else { continue }
+            context.insert(TransactionSplit(
+                transaction: transaction, person: person, shareAmount: template.shareAmount
+            ))
+        }
         rule.lastPostedDate = dueDate
         if let remaining = rule.remainingInstallments {
             rule.remainingInstallments = remaining - 1
@@ -309,6 +381,33 @@ final class TransactionStore: ObservableObject {
         }
         try? context.save()
         defaults.set(true, forKey: AppSettings.didSeedCategoriesKey)
+    }
+
+    /// Converts existing single-person expense tags into the new split model:
+    /// a person-tagged expense becomes one split for the full outlay (your share
+    /// zero), preserving its exclusion from insights and turning it into a
+    /// visible receivable. The `person` field is then reused only for
+    /// settlements. Runs once per install.
+    private func migratePersonTagsToSplitsIfNeeded() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: AppSettings.didMigratePersonToSplitsKey) else { return }
+        let tagged = (try? context.fetch(FetchDescriptor<Transaction>(
+            predicate: #Predicate { $0.person != nil && $0.isSettlement == false }
+        ))) ?? []
+        for transaction in tagged {
+            guard let person = transaction.person, !(transaction.isSplit) else {
+                transaction.person = nil
+                continue
+            }
+            let split = TransactionSplit(
+                transaction: transaction, person: person,
+                shareAmount: transaction.splitTotal
+            )
+            context.insert(split)
+            transaction.person = nil
+        }
+        try? context.save()
+        defaults.set(true, forKey: AppSettings.didMigratePersonToSplitsKey)
     }
 
     /// Inserts a default category on installs that were seeded before it existed.
@@ -377,17 +476,28 @@ final class TransactionStore: ObservableObject {
                 category: sample.4.flatMap(category)
             ))
         }
-        // A friend/family member and a couple of transactions on their behalf,
-        // plus a credit-card surcharge example.
+        // People and a split bill: I paid ₹4,500 (+₹90 fee) for a group dinner;
+        // Rahul and Priya each owe ₹1,530, leaving my share ₹1,530. Rahul has
+        // partially paid back. Plus a plain credit-card surcharge example.
         let rahul = Person(name: "Rahul", colorHex: Person.color(forIndex: 0))
-        context.insert(rahul)
-        context.insert(Transaction(
-            type: .expense, name: "Concert tickets", amount: 4_500, charges: 90,
-            date: daysAgo(9), account: card, category: category("Entertainment"), person: rahul
-        ))
+        let priya = Person(name: "Priya", colorHex: Person.color(forIndex: 3))
+        [rahul, priya].forEach { context.insert($0) }
+
+        let dinner = Transaction(
+            type: .expense, name: "Group dinner", amount: 4_500, charges: 90,
+            date: daysAgo(9), account: card, category: category("Food & Dining")
+        )
+        context.insert(dinner)
+        context.insert(TransactionSplit(transaction: dinner, person: rahul, shareAmount: 1_530))
+        context.insert(TransactionSplit(transaction: dinner, person: priya, shareAmount: 1_530))
+
         context.insert(Transaction(
             type: .expense, name: "Flight fee", amount: 3_200, charges: 250,
             date: daysAgo(5), account: card, category: category("Transport")
+        ))
+        context.insert(Transaction(
+            type: .income, name: "Repayment · Rahul", amount: 1_000,
+            date: daysAgo(2), account: bank, person: rahul, isSettlement: true
         ))
 
         // Transfers: card bill payment and a savings sweep between banks.

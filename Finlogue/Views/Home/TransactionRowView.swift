@@ -3,7 +3,8 @@
 //  Finlogue
 //
 //  Design-system list row: soft-tinted circular category chip, semibold
-//  name over a muted "Category · Account" line, signed bold amount.
+//  name over a muted "Category · Account" line, signed bold amount. Shared
+//  expenses show a split badge and your share; repayments read as income.
 //
 
 import SwiftUI
@@ -18,17 +19,7 @@ struct TransactionRowView: View {
                 .foregroundStyle(iconColor)
                 .frame(width: 46, height: 46)
                 .background(iconColor.opacity(0.14), in: Circle())
-                .overlay(alignment: .bottomTrailing) {
-                    if let person = transaction.person {
-                        Text(person.initials)
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.white)
-                            .frame(width: 18, height: 18)
-                            .background(Color(hex: person.colorHex), in: Circle())
-                            .overlay(Circle().strokeBorder(FinTheme.paper, lineWidth: 1.5))
-                            .offset(x: 3, y: 3)
-                    }
-                }
+                .overlay(alignment: .bottomTrailing) { badge }
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(transaction.name)
@@ -49,7 +40,12 @@ struct TransactionRowView: View {
                     .kerning(-0.3)
                     .foregroundStyle(amountColor)
                     .monospacedDigit()
-                if transaction.charges > 0 {
+                if transaction.isSplit && transaction.myShare > 0 {
+                    Text("your share \(CurrencyFormatter.string(transaction.myShare))")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(FinTheme.ink400)
+                        .monospacedDigit()
+                } else if transaction.charges > 0 {
                     Text("+\(CurrencyFormatter.string(transaction.charges)) fee")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(FinTheme.ink400)
@@ -60,10 +56,38 @@ struct TransactionRowView: View {
         .padding(.vertical, 6)
     }
 
+    // MARK: Badge (settlement payer, or split indicator)
+
+    @ViewBuilder
+    private var badge: some View {
+        if transaction.isSettlement, let person = transaction.person {
+            initialsBadge(person.initials, color: Color(hex: person.colorHex))
+        } else if transaction.isSplit {
+            Image(systemName: "person.2.fill")
+                .font(.system(size: 8, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 18, height: 18)
+                .background(FinTheme.coral, in: Circle())
+                .overlay(Circle().strokeBorder(FinTheme.paper, lineWidth: 1.5))
+                .offset(x: 3, y: 3)
+        }
+    }
+
+    private func initialsBadge(_ text: String, color: Color) -> some View {
+        Text(text)
+            .font(.system(size: 9, weight: .bold))
+            .foregroundStyle(.white)
+            .frame(width: 18, height: 18)
+            .background(color, in: Circle())
+            .overlay(Circle().strokeBorder(FinTheme.paper, lineWidth: 1.5))
+            .offset(x: 3, y: 3)
+    }
+
     private var isTransfer: Bool { transaction.type == .transfer }
 
     private var iconSymbol: String {
         if isTransfer { return "arrow.left.arrow.right" }
+        if transaction.isSettlement { return "arrow.down.left" }
         if transaction.type == .income {
             return transaction.category?.symbol ?? "briefcase"
         }
@@ -77,18 +101,21 @@ struct TransactionRowView: View {
     }
 
     private var subtitle: String {
+        if transaction.isSettlement {
+            return "Repayment" + (transaction.account.map { " · \($0.name)" } ?? "")
+        }
         if isTransfer {
             let from = transaction.account?.name ?? "?"
             let to = transaction.toAccount?.name ?? "?"
-            let base = "\(from) → \(to)"
-            return transaction.person.map { "\(base) · for \($0.name)" } ?? base
+            return "\(from) → \(to)"
         }
         var parts = [transaction.category?.name ?? "Uncategorized"]
         if let account = transaction.account {
             parts.append(account.name)
         }
-        if let person = transaction.person {
-            parts.append("for \(person.name)")
+        if transaction.isSplit {
+            let count = (transaction.splits ?? []).count
+            parts.append("split \(count) \(count == 1 ? "way" : "ways")")
         }
         return parts.joined(separator: " · ")
     }

@@ -29,9 +29,8 @@ struct TransactionEditorView: View {
     @State private var selectedAccountID: UUID?
     @State private var selectedToAccountID: UUID?
     @State private var selectedCategoryID: UUID?
-    @State private var selectedPersonID: UUID?
-    @State private var showNewPerson = false
-    @State private var newPersonName = ""
+    @State private var splitDrafts: [SplitDraft] = []
+    @State private var showSplitEditor = false
 
     @FocusState private var amountFocused: Bool
 
@@ -107,8 +106,19 @@ struct TransactionEditorView: View {
         return max(0, Double(raw) ?? 0)
     }
 
-    /// Person tag applies to any type; charges only to outflows.
+    /// Charges only apply to outflows; splitting is for expenses only.
     private var showsCharges: Bool { type != .income }
+    private var showsSplit: Bool { type == .expense }
+
+    /// The full outlay being divided when splitting.
+    private var splitTotal: Double { (amount ?? 0) + chargesValue }
+
+    /// Sum of friends' shares currently entered.
+    private var othersShareDraft: Double {
+        splitDrafts.reduce(0) { $0 + max(0, $1.amount) }
+    }
+
+    private var myShareDraft: Double { max(0, splitTotal - othersShareDraft) }
 
     /// Re-groups the typed amount live, preserving a partially typed fraction.
     private func reformatAmount(_ text: String) {
@@ -193,18 +203,8 @@ struct TransactionEditorView: View {
         }
         .background(FinTheme.canvas)
         .fontDesign(.rounded)
-        .alert("New person", isPresented: $showNewPerson) {
-            TextField("Name", text: $newPersonName)
-            Button("Cancel", role: .cancel) {}
-            Button("Add") {
-                let trimmed = newPersonName.trimmingCharacters(in: .whitespaces)
-                guard !trimmed.isEmpty else { return }
-                let person = store.savePerson(nil, name: trimmed, colorHex: "")
-                selectedPersonID = person.id
-                FinHaptics.success()
-            }
-        } message: {
-            Text("Tag this transaction to a friend or family member.")
+        .sheet(isPresented: $showSplitEditor) {
+            SplitEditorView(splits: $splitDrafts, total: splitTotal)
         }
         .onAppear(perform: populate)
         .onChange(of: type) { _, newType in
@@ -397,14 +397,18 @@ struct TransactionEditorView: View {
                     }
                     Divider().overlay(FinTheme.lineSoft)
                 }
-                detailRow(label: "For") {
-                    Menu {
-                        personMenuItems
+                if showsSplit {
+                    Button {
+                        FinHaptics.tap()
+                        showSplitEditor = true
                     } label: {
-                        detailValue(people.first { $0.id == selectedPersonID }?.name ?? "Just me")
+                        detailRow(label: "Split") {
+                            detailValue(splitSummary)
+                        }
                     }
+                    .buttonStyle(.plain)
+                    Divider().overlay(FinTheme.lineSoft)
                 }
-                Divider().overlay(FinTheme.lineSoft)
                 detailRow(label: "Date") {
                     DatePicker(
                         "", selection: $date,
@@ -449,26 +453,11 @@ struct TransactionEditorView: View {
         }
     }
 
-    @ViewBuilder
-    private var personMenuItems: some View {
-        Button {
-            selectedPersonID = nil
-        } label: {
-            Label("Just me", systemImage: selectedPersonID == nil ? "checkmark" : "person")
-        }
-        if !people.isEmpty {
-            Section("People") {
-                ForEach(people) { person in
-                    Button(person.name) { selectedPersonID = person.id }
-                }
-            }
-        }
-        Button {
-            newPersonName = ""
-            showNewPerson = true
-        } label: {
-            Label("New person…", systemImage: "plus")
-        }
+    /// Right-hand summary on the Split row.
+    private var splitSummary: String {
+        guard !splitDrafts.isEmpty else { return "Just me" }
+        let count = splitDrafts.count
+        return "\(count) \(count == 1 ? "person" : "people") · you \(CurrencyFormatter.string(myShareDraft))"
     }
 
     @ViewBuilder
@@ -521,7 +510,10 @@ struct TransactionEditorView: View {
         selectedAccountID = transaction.account?.id
         selectedToAccountID = transaction.toAccount?.id
         selectedCategoryID = transaction.category?.id
-        selectedPersonID = transaction.person?.id
+        splitDrafts = (transaction.splits ?? []).compactMap { split in
+            guard let personID = split.person?.id else { return nil }
+            return SplitDraft(personID: personID, amount: split.shareAmount)
+        }
     }
 
     private func dismissKeyboard() {
@@ -536,8 +528,14 @@ struct TransactionEditorView: View {
         let account = accounts.first { $0.id == selectedAccountID }
         let toAccount = accounts.first { $0.id == selectedToAccountID }
         let category = categories.first { $0.id == selectedCategoryID }
-        let person = people.first { $0.id == selectedPersonID }
         let charges = showsCharges ? chargesValue : 0
+        let splits: [TransactionStore.SplitShare] = showsSplit
+            ? splitDrafts.compactMap { draft in
+                guard draft.amount > 0, let person = people.first(where: { $0.id == draft.personID })
+                else { return nil }
+                return (person: person, amount: draft.amount)
+            }
+            : []
         let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
 
         if let transaction {
@@ -545,14 +543,14 @@ struct TransactionEditorView: View {
                 transaction, type: type, name: name.trimmingCharacters(in: .whitespaces),
                 amount: amount, charges: charges, date: date,
                 note: trimmedNote.isEmpty ? nil : trimmedNote,
-                account: account, toAccount: toAccount, category: category, person: person
+                account: account, toAccount: toAccount, category: category, splits: splits
             )
         } else {
             store.addTransaction(
                 type: type, name: name.trimmingCharacters(in: .whitespaces),
                 amount: amount, charges: charges, date: date,
                 note: trimmedNote.isEmpty ? nil : trimmedNote,
-                account: account, toAccount: toAccount, category: category, person: person
+                account: account, toAccount: toAccount, category: category, splits: splits
             )
         }
         if let account {

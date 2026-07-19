@@ -28,9 +28,10 @@ struct DailyTotal: Identifiable {
 }
 
 enum InsightsService {
-    /// Transactions in `month`, excluding those tagged to a person — spending on
-    /// behalf of someone is reimbursable, so it never counts as your own
-    /// income/expense in analytics or budgets.
+    /// Transactions in `month`, excluding settlement (repayment) transactions.
+    /// Only your own share of a shared expense counts toward analytics — see
+    /// `Transaction.myShare` — so split-out amounts you'll be paid back are
+    /// never treated as your spending.
     static func transactions(
         in context: ModelContext, month: Date, calendar: Calendar = .current
     ) -> [Transaction] {
@@ -40,12 +41,14 @@ enum InsightsService {
         let descriptor = FetchDescriptor<Transaction>(
             predicate: #Predicate { $0.date >= start && $0.date < end }
         )
-        return ((try? context.fetch(descriptor)) ?? []).filter { $0.person == nil }
+        return ((try? context.fetch(descriptor)) ?? []).filter { !$0.isSettlement }
     }
 
-    /// Expense totals per category for one month, largest first.
+    /// Expense totals per category for one month, largest first. Uses each
+    /// transaction's own share, so split-out amounts are left out.
     static func categoryTotals(in context: ModelContext, month: Date) -> [CategoryTotal] {
-        let expenses = transactions(in: context, month: month).filter { $0.type == .expense }
+        let expenses = transactions(in: context, month: month)
+            .filter { $0.type == .expense && $0.myShare > 0 }
         var totals: [UUID: CategoryTotal] = [:]
         let uncategorizedID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
         for transaction in expenses {
@@ -56,7 +59,7 @@ enum InsightsService {
                 name: transaction.category?.name ?? "Uncategorized",
                 colorHex: transaction.category?.colorHex ?? "#94A3B8",
                 symbol: transaction.category?.symbol ?? "questionmark",
-                total: existing + transaction.amount
+                total: existing + transaction.myShare
             )
         }
         return totals.values.sorted { $0.total > $1.total }
@@ -75,7 +78,7 @@ enum InsightsService {
             return MonthlyTotal(
                 month: monthStart,
                 income: items.filter { $0.type == .income }.reduce(0) { $0 + $1.amount },
-                expense: items.filter { $0.type == .expense }.reduce(0) { $0 + $1.amount }
+                expense: items.filter { $0.type == .expense }.reduce(0) { $0 + $1.myShare }
             )
         }
     }
@@ -87,7 +90,7 @@ enum InsightsService {
         let grouped = Dictionary(grouping: expenses) { calendar.startOfDay(for: $0.date) }
         var running = 0.0
         return grouped.keys.sorted().map { day in
-            running += grouped[day]?.reduce(0) { $0 + $1.amount } ?? 0
+            running += grouped[day]?.reduce(0) { $0 + $1.myShare } ?? 0
             return DailyTotal(day: day, expense: running)
         }
     }

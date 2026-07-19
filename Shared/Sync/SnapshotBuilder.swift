@@ -28,6 +28,11 @@ enum SnapshotBuilder {
         transactionDescriptor.fetchLimit = maxTransactions
         let transactions = try context.fetch(transactionDescriptor)
 
+        // Only ship splits belonging to transactions in the (trimmed) snapshot.
+        let transactionIDs = Set(transactions.map(\.id))
+        let splits = try context.fetch(FetchDescriptor<TransactionSplit>())
+            .filter { $0.transaction.map { transactionIDs.contains($0.id) } ?? false }
+
         return SyncSnapshot(
             generatedAt: .now,
             currencyCode: AppSettings.currencyCode,
@@ -37,7 +42,8 @@ enum SnapshotBuilder {
             budgets: budgets.map(BudgetDTO.init),
             recurringRules: rules.map(RecurringRuleDTO.init),
             transactions: transactions.map(TransactionDTO.init),
-            people: people.map(PersonDTO.init)
+            people: people.map(PersonDTO.init),
+            splits: splits.map(TransactionSplitDTO.init)
         )
     }
 
@@ -179,8 +185,31 @@ enum SnapshotBuilder {
             transaction.toAccount = dto.toAccountID.flatMap { accountsByID[$0] }
             transaction.category = dto.categoryID.flatMap { categoriesByID[$0] }
             transaction.person = dto.personID.flatMap { peopleByID[$0] }
+            transaction.isSettlement = dto.isSettlement
             transaction.createdAt = dto.createdAt
             transaction.updatedAt = dto.updatedAt
+        }
+
+        // Splits (reference transactions + people, so applied after both)
+        let existingSplits = try context.fetch(FetchDescriptor<TransactionSplit>())
+        var splitsByID: [UUID: TransactionSplit] = [:]
+        for split in existingSplits {
+            if snapshot.splits.contains(where: { $0.id == split.id }) {
+                splitsByID[split.id] = split
+            } else {
+                context.delete(split)
+            }
+        }
+        for dto in snapshot.splits {
+            let split = splitsByID[dto.id] ?? {
+                let created = TransactionSplit(id: dto.id, shareAmount: dto.shareAmount)
+                context.insert(created)
+                splitsByID[dto.id] = created
+                return created
+            }()
+            split.shareAmount = dto.shareAmount
+            split.transaction = dto.transactionID.flatMap { transactionsByID[$0] }
+            split.person = dto.personID.flatMap { peopleByID[$0] }
         }
 
         // Budgets

@@ -30,6 +30,10 @@ final class RecurringRule {
     var isActive: Bool
     var updatedAt: Date
 
+    /// Per-person share templates. Copied onto each posted occurrence.
+    @Relationship(deleteRule: .cascade, inverse: \RecurringSplit.rule)
+    var splits: [RecurringSplit]? = []
+
     init(
         id: UUID = UUID(),
         name: String,
@@ -73,6 +77,16 @@ final class RecurringRule {
         get { RecurrenceFrequency(rawValue: frequencyRaw) ?? .monthly }
         set { frequencyRaw = newValue.rawValue }
     }
+
+    /// Sum of friends' shares per occurrence.
+    var othersShare: Double {
+        (splits ?? []).reduce(0) { $0 + $1.shareAmount }
+    }
+
+    var isSplit: Bool { !(splits ?? []).isEmpty }
+
+    /// Your own portion of each occurrence.
+    var myShare: Double { max(0, amount - othersShare) }
 }
 
 extension RecurringRule {
