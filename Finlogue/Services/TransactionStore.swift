@@ -145,28 +145,56 @@ final class TransactionStore: ObservableObject {
         type: AccountType,
         openingBalance: Double,
         creditLimit: Double?,
-        statementDay: Int? = nil
+        statementDay: Int? = nil,
+        creditGroup: CreditGroup? = nil
     ) {
         let day = type == .creditCard ? statementDay : nil
+        let group = type == .creditCard ? creditGroup : nil
         if let account {
             account.name = name
             account.type = type
             account.openingBalance = openingBalance
             account.creditLimit = creditLimit
             account.statementDay = day
+            account.creditGroup = group
             account.updatedAt = .now
         } else {
-            context.insert(Account(
+            let created = Account(
                 name: name, type: type,
                 openingBalance: openingBalance, creditLimit: creditLimit,
                 statementDay: day
-            ))
+            )
+            created.creditGroup = group
+            context.insert(created)
         }
         persist()
     }
 
     func delete(_ account: Account) {
         context.delete(account)
+        persist()
+    }
+
+    // MARK: Credit groups (shared limits)
+
+    @discardableResult
+    func saveCreditGroup(_ group: CreditGroup?, name: String, sharedLimit: Double) -> CreditGroup {
+        if let group {
+            group.name = name
+            group.sharedLimit = sharedLimit
+            group.updatedAt = .now
+            persist()
+            return group
+        } else {
+            let created = CreditGroup(name: name, sharedLimit: sharedLimit)
+            context.insert(created)
+            persist()
+            return created
+        }
+    }
+
+    func delete(_ group: CreditGroup) {
+        context.delete(group)
         persist()
     }
 
@@ -436,14 +464,18 @@ final class TransactionStore: ObservableObject {
             categories.first { $0.name == name }
         }
 
+        // Two Axis cards sharing one ₹2,00,000 limit.
+        let axisGroup = CreditGroup(name: "Axis", sharedLimit: 200_000)
+        context.insert(axisGroup)
+
         let bank = Account(name: "HDFC Savings", type: .bank, openingBalance: 50_000)
-        let card = Account(
-            name: "Axis Credit Card", type: .creditCard,
-            creditLimit: 100_000, statementDay: 10
-        )
+        let card = Account(name: "Flipkart Axis", type: .creditCard, statementDay: 10)
+        card.creditGroup = axisGroup
+        let axisAce = Account(name: "Axis Ace", type: .creditCard, statementDay: 18)
+        axisAce.creditGroup = axisGroup
         let federal = Account(name: "Federal Bank", type: .bank, openingBalance: 15_000)
         let cash = Account(name: "Wallet", type: .cash, openingBalance: 2_000)
-        [bank, card, federal, cash].forEach { context.insert($0) }
+        [bank, card, axisAce, federal, cash].forEach { context.insert($0) }
 
         let calendar = Calendar.current
         func daysAgo(_ days: Int) -> Date {
@@ -494,6 +526,15 @@ final class TransactionStore: ObservableObject {
         context.insert(Transaction(
             type: .expense, name: "Flight fee", amount: 3_200, charges: 250,
             date: daysAgo(5), account: card, category: category("Transport")
+        ))
+        // Spends on the second Axis card (shares the group limit with the first).
+        context.insert(Transaction(
+            type: .expense, name: "Amazon order", amount: 5_400,
+            date: daysAgo(7), account: axisAce, category: category("Shopping")
+        ))
+        context.insert(Transaction(
+            type: .expense, name: "Fuel", amount: 3_000,
+            date: daysAgo(3), account: axisAce, category: category("Transport")
         ))
         context.insert(Transaction(
             type: .income, name: "Repayment · Rahul", amount: 1_000,

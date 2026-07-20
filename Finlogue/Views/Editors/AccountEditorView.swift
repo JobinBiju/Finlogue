@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct AccountEditorView: View {
     var account: Account?
@@ -14,15 +15,33 @@ struct AccountEditorView: View {
     @EnvironmentObject private var store: TransactionStore
     @Environment(\.dismiss) private var dismiss
 
+    @Query(sort: \CreditGroup.name) private var creditGroups: [CreditGroup]
+
     @State private var name = ""
     @State private var type: AccountType = .bank
     @State private var openingBalanceText = ""
     @State private var creditLimitText = ""
     @State private var outstandingText = ""
     @State private var statementDay: Int?
+    // Shared credit limit
+    @State private var useSharedLimit = false
+    @State private var selectedGroupID: UUID?
+    @State private var groupName = ""
+    @State private var sharedLimitText = ""
 
     private var canSave: Bool {
-        !name.trimmingCharacters(in: .whitespaces).isEmpty
+        guard !name.trimmingCharacters(in: .whitespaces).isEmpty else { return false }
+        if type == .creditCard, useSharedLimit {
+            guard !groupName.trimmingCharacters(in: .whitespaces).isEmpty,
+                  (AmountInput.parse(sharedLimitText) ?? 0) > 0 else { return false }
+        }
+        return true
+    }
+
+    private func selectGroup(_ group: CreditGroup) {
+        selectedGroupID = group.id
+        groupName = group.name
+        sharedLimitText = AmountInput.string(group.sharedLimit)
     }
 
     var body: some View {
@@ -131,11 +150,110 @@ struct AccountEditorView: View {
         .padding(.top, 12)
     }
 
+    private var selectedGroup: CreditGroup? {
+        creditGroups.first { $0.id == selectedGroupID }
+    }
+
+    private var creditLimitCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            labeledCard("Credit limit") {
+                limitTypeSegments
+                    .padding(.vertical, 8)
+                if useSharedLimit {
+                    Divider().overlay(FinTheme.lineSoft)
+                    if !creditGroups.isEmpty {
+                        HStack {
+                            Text("Group")
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundStyle(FinTheme.ink600)
+                            Spacer()
+                            Menu {
+                                ForEach(creditGroups) { group in
+                                    Button(group.name) { selectGroup(group) }
+                                }
+                                Button {
+                                    selectedGroupID = nil
+                                    groupName = ""
+                                    sharedLimitText = ""
+                                } label: {
+                                    Label("New group…", systemImage: "plus")
+                                }
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Text(selectedGroup?.name ?? "New group")
+                                        .font(.system(size: 15, weight: .semibold))
+                                        .foregroundStyle(FinTheme.ink)
+                                    Image(systemName: "chevron.up.chevron.down")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundStyle(FinTheme.ink400)
+                                }
+                            }
+                        }
+                        .padding(.vertical, 12)
+                        Divider().overlay(FinTheme.lineSoft)
+                    }
+                    HStack {
+                        Text("Group name")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(FinTheme.ink600)
+                        Spacer()
+                        TextField("e.g. Axis", text: $groupName)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(FinTheme.ink)
+                            .multilineTextAlignment(.trailing)
+                            .frame(maxWidth: 160)
+                    }
+                    .padding(.vertical, 12)
+                    Divider().overlay(FinTheme.lineSoft)
+                    amountRow(label: "Shared limit", text: $sharedLimitText)
+                } else {
+                    Divider().overlay(FinTheme.lineSoft)
+                    amountRow(label: "Credit limit", text: $creditLimitText)
+                }
+            }
+            if useSharedLimit, let group = selectedGroup {
+                Text("Currently \(CurrencyFormatter.string(group.available)) available across \(group.cards?.count ?? 0) card\((group.cards?.count ?? 0) == 1 ? "" : "s").")
+                    .font(.system(size: 12))
+                    .foregroundStyle(FinTheme.ink400)
+                    .padding(.leading, 4)
+            } else if useSharedLimit {
+                Text("Cards in a group share one limit; any card can use whatever's left in the pool.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(FinTheme.ink400)
+                    .padding(.leading, 4)
+            }
+        }
+        .padding(.top, 12)
+    }
+
+    private var limitTypeSegments: some View {
+        HStack(spacing: 0) {
+            limitSegment(title: "Own limit", selected: !useSharedLimit) { useSharedLimit = false }
+            limitSegment(title: "Shared", selected: useSharedLimit) { useSharedLimit = true }
+        }
+        .padding(3)
+        .background(FinTheme.paperInset, in: Capsule())
+    }
+
+    private func limitSegment(title: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button {
+            FinHaptics.selection()
+            withAnimation(.snappy(duration: 0.2)) { action() }
+        } label: {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(selected ? .white : FinTheme.ink400)
+                .frame(maxWidth: .infinity)
+                .frame(height: 34)
+                .background { if selected { Capsule().fill(FinTheme.coral) } }
+        }
+        .buttonStyle(.plain)
+    }
+
     private var creditCardCard: some View {
         VStack(alignment: .leading, spacing: 8) {
+            creditLimitCard
             labeledCard("Credit card") {
-                amountRow(label: "Credit limit", text: $creditLimitText)
-                Divider().overlay(FinTheme.lineSoft)
                 amountRow(label: "Current outstanding", text: $outstandingText)
                 Divider().overlay(FinTheme.lineSoft)
                 HStack {
@@ -226,6 +344,12 @@ struct AccountEditorView: View {
             outstandingText = AmountInput.string(account.spent)
         }
         statementDay = account.statementDay
+        if let group = account.creditGroup {
+            useSharedLimit = true
+            selectedGroupID = group.id
+            groupName = group.name
+            sharedLimitText = AmountInput.string(group.sharedLimit)
+        }
     }
 
     private func save() {
@@ -244,13 +368,26 @@ struct AccountEditorView: View {
             cardOpening = outstanding
         }
 
+        // Resolve or create the shared-limit group when in shared mode.
+        var resolvedGroup: CreditGroup?
+        if type == .creditCard, useSharedLimit {
+            let trimmedGroupName = groupName.trimmingCharacters(in: .whitespaces)
+            let sharedLimit = AmountInput.parse(sharedLimitText) ?? 0
+            if !trimmedGroupName.isEmpty, sharedLimit > 0 {
+                resolvedGroup = store.saveCreditGroup(
+                    selectedGroup, name: trimmedGroupName, sharedLimit: sharedLimit
+                )
+            }
+        }
+
         store.saveAccount(
             account,
             name: name.trimmingCharacters(in: .whitespaces),
             type: type,
             openingBalance: type == .creditCard ? cardOpening : opening,
             creditLimit: type == .creditCard ? limit : nil,
-            statementDay: statementDay
+            statementDay: statementDay,
+            creditGroup: resolvedGroup
         )
         FinHaptics.success()
         dismiss()

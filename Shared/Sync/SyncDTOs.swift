@@ -8,6 +8,22 @@
 
 import Foundation
 
+struct CreditGroupDTO: Codable, Identifiable {
+    var id: UUID
+    var name: String
+    var sharedLimit: Double
+    var createdAt: Date
+    var updatedAt: Date
+
+    init(from group: CreditGroup) {
+        id = group.id
+        name = group.name
+        sharedLimit = group.sharedLimit
+        createdAt = group.createdAt
+        updatedAt = group.updatedAt
+    }
+}
+
 struct AccountDTO: Codable, Identifiable {
     var id: UUID
     var name: String
@@ -15,6 +31,7 @@ struct AccountDTO: Codable, Identifiable {
     var openingBalance: Double
     var creditLimit: Double?
     var statementDay: Int?
+    var creditGroupID: UUID?
     var createdAt: Date
     var updatedAt: Date
 
@@ -25,8 +42,28 @@ struct AccountDTO: Codable, Identifiable {
         openingBalance = account.openingBalance
         creditLimit = account.creditLimit
         statementDay = account.statementDay
+        creditGroupID = account.creditGroup?.id
         createdAt = account.createdAt
         updatedAt = account.updatedAt
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, type, openingBalance, creditLimit, statementDay
+        case creditGroupID, createdAt, updatedAt
+    }
+
+    // Custom decode so snapshots from older builds (no creditGroupID) still load.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        type = try container.decode(AccountType.self, forKey: .type)
+        openingBalance = try container.decode(Double.self, forKey: .openingBalance)
+        creditLimit = try container.decodeIfPresent(Double.self, forKey: .creditLimit)
+        statementDay = try container.decodeIfPresent(Int.self, forKey: .statementDay)
+        creditGroupID = try container.decodeIfPresent(UUID.self, forKey: .creditGroupID)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        updatedAt = try container.decode(Date.self, forKey: .updatedAt)
     }
 }
 
@@ -203,10 +240,12 @@ struct SyncSnapshot: Codable {
     var transactions: [TransactionDTO]
     var people: [PersonDTO] = []
     var splits: [TransactionSplitDTO] = []
+    var creditGroups: [CreditGroupDTO] = []
 
     private enum CodingKeys: String, CodingKey {
         case version, generatedAt, currencyCode, themeID
-        case accounts, categories, budgets, recurringRules, transactions, people, splits
+        case accounts, categories, budgets, recurringRules, transactions
+        case people, splits, creditGroups
     }
 
     init(
@@ -220,7 +259,8 @@ struct SyncSnapshot: Codable {
         recurringRules: [RecurringRuleDTO],
         transactions: [TransactionDTO],
         people: [PersonDTO] = [],
-        splits: [TransactionSplitDTO] = []
+        splits: [TransactionSplitDTO] = [],
+        creditGroups: [CreditGroupDTO] = []
     ) {
         self.version = version
         self.generatedAt = generatedAt
@@ -233,9 +273,10 @@ struct SyncSnapshot: Codable {
         self.transactions = transactions
         self.people = people
         self.splits = splits
+        self.creditGroups = creditGroups
     }
 
-    // Tolerate snapshots from older builds that predate `people` / `splits`.
+    // Tolerate snapshots from older builds that predate people/splits/creditGroups.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         version = try container.decodeIfPresent(Int.self, forKey: .version) ?? 1
@@ -250,6 +291,7 @@ struct SyncSnapshot: Codable {
         transactions = try container.decode([TransactionDTO].self, forKey: .transactions)
         people = try container.decodeIfPresent([PersonDTO].self, forKey: .people) ?? []
         splits = try container.decodeIfPresent([TransactionSplitDTO].self, forKey: .splits) ?? []
+        creditGroups = try container.decodeIfPresent([CreditGroupDTO].self, forKey: .creditGroups) ?? []
     }
 }
 

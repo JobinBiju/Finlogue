@@ -12,8 +12,6 @@ A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI*
 | :---: | :---: | :---: | :---: |
 | <img src="Screenshots/ios-home.png" alt="Home" width="180"> | <img src="Screenshots/ios-insights.png" alt="Insights" width="180"> | <img src="Screenshots/ios-budgets.png" alt="Budgets" width="180"> | <img src="Screenshots/ios-settings.png" alt="Settings" width="180"> |
 
-### Shared expenses & people
-
 | People | **Ledger & repayments** |
 | :---: | :---: |
 | <img src="Screenshots/ios-people.png" alt="People" width="180"> | <img src="Screenshots/ios-people-ledger.png" alt="Person ledger" width="180"> |

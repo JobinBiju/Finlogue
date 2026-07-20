@@ -108,7 +108,9 @@ struct AccountCardView: View {
                     .animation(.smooth(duration: 0.5), value: account.spent)
                     .minimumScaleFactor(0.7)
                     .lineLimit(1)
-                if let limit = account.creditLimit, limit > 0 {
+                // Grouped cards share a limit, so the per-card gauge/available
+                // are omitted here (the shared pool shows in Accounts settings).
+                if account.creditGroup == nil, let limit = account.creditLimit, limit > 0 {
                     Capsule()
                         .fill(palette.chipBackground)
                         .frame(height: 6)
@@ -130,7 +132,7 @@ struct AccountCardView: View {
                         .foregroundStyle(palette.secondaryText)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
-                } else if let limit = account.creditLimit, limit > 0 {
+                } else if account.creditGroup == nil, let limit = account.creditLimit, limit > 0 {
                     Text("Available \(CurrencyFormatter.string(max(limit - account.spent, 0)))")
                         .font(.system(size: 11))
                         .foregroundStyle(palette.secondaryText)

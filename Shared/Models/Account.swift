@@ -17,6 +17,9 @@ final class Account {
     var creditLimit: Double?
     /// Credit card only: day of month the statement generates (1–31).
     var statementDay: Int?
+    /// Credit card only: shared credit-limit pool. When set, `creditLimit` is
+    /// ignored and availability is computed against the group's shared limit.
+    var creditGroup: CreditGroup?
     var createdAt: Date
     var updatedAt: Date
 
@@ -138,9 +141,18 @@ extension Account {
             - incomeTotal - transferInTotal)
     }
 
+    /// Credit available on this card. For a grouped card this is the whole
+    /// remaining shared pool; otherwise its own limit minus outstanding.
     var available: Double? {
-        guard type == .creditCard, let creditLimit else { return nil }
+        guard type == .creditCard else { return nil }
+        if let creditGroup { return creditGroup.available }
+        guard let creditLimit else { return nil }
         return creditLimit - spent
+    }
+
+    /// The limit governing this card — shared if grouped, else its own.
+    var effectiveCreditLimit: Double? {
+        creditGroup?.sharedLimit ?? creditLimit
     }
 
     // MARK: Billing cycle (credit cards with a statement day)

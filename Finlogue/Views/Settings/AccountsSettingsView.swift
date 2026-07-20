@@ -14,6 +14,7 @@ struct AccountsSettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
     @Query(sort: \Account.createdAt) private var accounts: [Account]
+    @Query(sort: \CreditGroup.name) private var creditGroups: [CreditGroup]
 
     @State private var editingAccount: Account?
     @State private var showAddAccount = false
@@ -28,6 +29,19 @@ struct AccountsSettingsView: View {
                     }
                 } header: {
                     SectionHeader(entry.group.rawValue)
+                }
+            }
+            if !creditGroups.isEmpty {
+                Section {
+                    ForEach(creditGroups) { group in
+                        creditGroupRow(group)
+                    }
+                } header: {
+                    SectionHeader("Shared limits")
+                } footer: {
+                    Text("Cards in a group share one limit. Deleting a group makes its cards standalone.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(FinTheme.ink400)
                 }
             }
             Section {
@@ -124,6 +138,47 @@ struct AccountsSettingsView: View {
             Button(role: .destructive) {
                 FinHaptics.warning()
                 store.delete(account)
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+
+    private func creditGroupRow(_ group: CreditGroup) -> some View {
+        let cardCount = group.cards?.count ?? 0
+        return HStack(spacing: 12) {
+            Image(systemName: "creditcard.and.123")
+                .font(.system(size: 16))
+                .foregroundStyle(FinTheme.ink600)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(group.name)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(FinTheme.ink)
+                Text("\(cardCount) card\(cardCount == 1 ? "" : "s")")
+                    .font(.system(size: 12))
+                    .foregroundStyle(FinTheme.ink400)
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("\(CurrencyFormatter.string(max(group.available, 0))) left")
+                    .font(.system(size: 15, weight: .semibold))
+                    .kerning(-0.3)
+                    .foregroundStyle(group.available > 0 ? FinTheme.green : FinTheme.red)
+                    .monospacedDigit()
+                Text("of \(CurrencyFormatter.string(group.sharedLimit))")
+                    .font(.system(size: 12))
+                    .foregroundStyle(FinTheme.ink400)
+                    .monospacedDigit()
+            }
+        }
+        .padding(.vertical, 4)
+        .listRowBackground(FinTheme.paper)
+        .listRowSeparatorTint(FinTheme.lineSoft)
+        .swipeActions(edge: .trailing) {
+            Button(role: .destructive) {
+                FinHaptics.warning()
+                store.delete(group)
             } label: {
                 Label("Delete", systemImage: "trash")
             }

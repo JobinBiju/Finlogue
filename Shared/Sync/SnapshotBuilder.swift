@@ -18,6 +18,7 @@ enum SnapshotBuilder {
     @MainActor
     static func build(context: ModelContext) throws -> SyncSnapshot {
         let accounts = try context.fetch(FetchDescriptor<Account>(sortBy: [SortDescriptor(\.createdAt)]))
+        let creditGroups = try context.fetch(FetchDescriptor<CreditGroup>(sortBy: [SortDescriptor(\.name)]))
         let categories = try context.fetch(FetchDescriptor<Category>(sortBy: [SortDescriptor(\.sortOrder)]))
         let budgets = try context.fetch(FetchDescriptor<Budget>())
         let rules = try context.fetch(FetchDescriptor<RecurringRule>(sortBy: [SortDescriptor(\.name)]))
@@ -43,7 +44,8 @@ enum SnapshotBuilder {
             recurringRules: rules.map(RecurringRuleDTO.init),
             transactions: transactions.map(TransactionDTO.init),
             people: people.map(PersonDTO.init),
-            splits: splits.map(TransactionSplitDTO.init)
+            splits: splits.map(TransactionSplitDTO.init),
+            creditGroups: creditGroups.map(CreditGroupDTO.init)
         )
     }
 
@@ -84,6 +86,29 @@ enum SnapshotBuilder {
     /// present, delete everything missing. Phone is the source of truth.
     @MainActor
     static func apply(_ snapshot: SyncSnapshot, context: ModelContext) throws {
+        // Credit groups (accounts reference them, so applied first)
+        let existingGroups = try context.fetch(FetchDescriptor<CreditGroup>())
+        var groupsByID: [UUID: CreditGroup] = [:]
+        for group in existingGroups {
+            if snapshot.creditGroups.contains(where: { $0.id == group.id }) {
+                groupsByID[group.id] = group
+            } else {
+                context.delete(group)
+            }
+        }
+        for dto in snapshot.creditGroups {
+            let group = groupsByID[dto.id] ?? {
+                let created = CreditGroup(id: dto.id, name: dto.name, sharedLimit: dto.sharedLimit)
+                context.insert(created)
+                groupsByID[dto.id] = created
+                return created
+            }()
+            group.name = dto.name
+            group.sharedLimit = dto.sharedLimit
+            group.createdAt = dto.createdAt
+            group.updatedAt = dto.updatedAt
+        }
+
         // Accounts
         let existingAccounts = try context.fetch(FetchDescriptor<Account>())
         var accountsByID: [UUID: Account] = [:]
@@ -106,6 +131,7 @@ enum SnapshotBuilder {
             account.openingBalance = dto.openingBalance
             account.creditLimit = dto.creditLimit
             account.statementDay = dto.statementDay
+            account.creditGroup = dto.creditGroupID.flatMap { groupsByID[$0] }
             account.createdAt = dto.createdAt
             account.updatedAt = dto.updatedAt
         }
