@@ -42,6 +42,8 @@ struct RootTabView: View {
             // the new primary when the theme changes.
             .tint(FinTheme.coral)
             .id(themeManager.theme)
+            // Dark themes flip system chrome (menus, pickers, keyboard) to dark.
+            .preferredColorScheme(themeManager.theme.isDark ? .dark : .light)
     }
 
     private var themedContent: some View {

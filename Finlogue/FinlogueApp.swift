@@ -37,7 +37,6 @@ struct FinlogueApp: App {
         WindowGroup {
             RootTabView()
                 .environmentObject(store)
-                .preferredColorScheme(.light)
                 .fontDesign(.rounded)
         }
         .modelContainer(container)

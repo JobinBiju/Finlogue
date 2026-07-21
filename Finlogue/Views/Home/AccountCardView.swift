@@ -8,6 +8,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct AccountCardView: View {
     let account: Account
@@ -21,65 +22,42 @@ struct AccountCardView: View {
         let glow: Color
     }
 
-    private static let brightPalettes: [Palette] = [
-        Palette(
-            background: FinTheme.amber, text: FinTheme.ink,
-            secondaryText: FinTheme.ink.opacity(0.55),
-            chipBackground: FinTheme.ink.opacity(0.14),
-            glow: FinTheme.amber.opacity(0.30)
-        ),
-        Palette(
-            background: FinTheme.coral, text: .white,
-            secondaryText: .white.opacity(0.8),
-            chipBackground: .white.opacity(0.2),
-            glow: FinTheme.coral.opacity(0.28)
-        ),
-        Palette(
-            background: FinTheme.green, text: .white,
-            secondaryText: .white.opacity(0.8),
-            chipBackground: .white.opacity(0.2),
-            glow: FinTheme.green.opacity(0.28)
-        ),
-        Palette(
-            background: FinTheme.blue, text: .white,
-            secondaryText: .white.opacity(0.8),
-            chipBackground: .white.opacity(0.2),
-            glow: FinTheme.blue.opacity(0.28)
-        ),
-    ]
+    /// Theme accent backgrounds cards cycle through — so cards recolor with the
+    /// active theme instead of fixed brand colors.
+    private static var accentBackgrounds: [Color] {
+        [FinTheme.amber, FinTheme.coral, FinTheme.green, FinTheme.blue]
+    }
 
-    private static let darkPalette = Palette(
-        background: FinTheme.ink, text: FinTheme.cream,
-        secondaryText: FinTheme.cream.opacity(0.6),
-        chipBackground: FinTheme.cream.opacity(0.16),
-        glow: FinTheme.shadowTint.opacity(0.22)
-    )
-
-    /// Brand-tinted card for known banks, on white text.
-    private static func brandPalette(background: Color) -> Palette {
-        Palette(
-            background: background, text: .white,
-            secondaryText: .white.opacity(0.8),
-            chipBackground: .white.opacity(0.2),
-            glow: background.opacity(0.28)
+    /// Builds a card palette from a background, picking white or dark text by
+    /// the background's luminance so it stays legible in every theme.
+    private static func palette(background: Color, glowOpacity: Double = 0.28) -> Palette {
+        let text = readableText(on: background)
+        return Palette(
+            background: background,
+            text: text,
+            secondaryText: text.opacity(0.7),
+            chipBackground: text.opacity(0.16),
+            glow: background.opacity(glowOpacity)
         )
+    }
+
+    /// Near-black on light backgrounds, white on dark ones.
+    private static func readableText(on background: Color) -> Color {
+        let ui = UIColor(background)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        ui.getRed(&r, green: &g, blue: &b, alpha: &a)
+        let luminance = 0.299 * r + 0.587 * g + 0.114 * b
+        return luminance > 0.6 ? Color(hex: "#161616") : .white
     }
 
     private var palette: Palette {
         if account.type == .creditCard {
-            return Self.darkPalette
+            // The credit-card tile fills with `ink` (a cream figure in dark
+            // themes, near-black in light ones); text follows by luminance.
+            return Self.palette(background: FinTheme.ink, glowOpacity: 0.22)
         }
-        let name = account.name.localizedLowercase
-        if name.contains("hdfc") {
-            return Self.brandPalette(background: FinTheme.blue)
-        }
-        if name.contains("federal") {
-            return Self.brandPalette(background: Color(hex: "#1D3FA6"))
-        }
-        if name.contains("axis") {
-            return Self.brandPalette(background: Color(hex: "#AA1C41"))
-        }
-        return Self.brightPalettes[paletteIndex % Self.brightPalettes.count]
+        let colors = Self.accentBackgrounds
+        return Self.palette(background: colors[paletteIndex % colors.count])
     }
 
     var body: some View {

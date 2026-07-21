@@ -60,6 +60,7 @@ enum AppTheme: String, CaseIterable, Identifiable, Codable {
     case plum
     case olive
     case ocean
+    case noir
 
     var id: String { rawValue }
 
@@ -69,6 +70,7 @@ enum AppTheme: String, CaseIterable, Identifiable, Codable {
         case .plum: "Plum"
         case .olive: "Olive"
         case .ocean: "Ocean"
+        case .noir: "Noir"
         }
     }
 
@@ -79,6 +81,16 @@ enum AppTheme: String, CaseIterable, Identifiable, Codable {
         case .plum: "Ghost-white & plum"
         case .olive: "Cornsilk & olive"
         case .ocean: "Alice-blue & teal"
+        case .noir: "Charcoal & terracotta"
+        }
+    }
+
+    /// Dark themes drive `.preferredColorScheme(.dark)` so system controls
+    /// (menus, pickers, keyboard) match the dark canvas.
+    var isDark: Bool {
+        switch self {
+        case .noir: true
+        default: false
         }
     }
 
@@ -88,6 +100,7 @@ enum AppTheme: String, CaseIterable, Identifiable, Codable {
         case .plum: .plum
         case .olive: .olive
         case .ocean: .ocean
+        case .noir: .noir
         }
     }
 }
@@ -161,6 +174,25 @@ extension ThemePalette {
         tintAmber: "#FFE7DD", tintCoral: "#FFDDD2",
         shadowTint: "#04353B", watchGradientTop: "#006D77",
         slate: "#64748B", mutedIcon: "#94A3B8"
+    )
+
+    /// Noir — a dark theme: charcoal canvas, terracotta primary, forest green,
+    /// warm cream. Luminance is inverted vs the light themes — `ink` is the
+    /// light text and `cream` is the dark text sitting on the cream tab pill and
+    /// credit-card tiles (which fill with `ink`).
+    static let noir = ThemePalette(
+        coral: "#C84B31", coral600: "#A93D28",
+        amber: "#E0B074", amber500: "#D0994F",
+        lime100: "#25322A", lime300: "#4E9E78", lime400: "#5FB088",
+        green: "#4E9E78", red400: "#E06B4A", red: "#D9553A",
+        blue: "#5B8DEF", violet: "#B98AE0",
+        canvas: "#161616", paper: "#1F1F1E", paperInset: "#282826",
+        ink: "#ECDBBA", ink600: "#B7AC92", ink400: "#847B67",
+        line: "#33322E", lineSoft: "#2A2926", cream: "#161616",
+        tintLime: "#25322A", tintPeach: "#33241E",
+        tintAmber: "#332B1C", tintCoral: "#33211B",
+        shadowTint: "#000000", watchGradientTop: "#C84B31",
+        slate: "#6E6A60", mutedIcon: "#57534A"
     )
 }
 
