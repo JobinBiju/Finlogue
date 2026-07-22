@@ -129,8 +129,7 @@ struct RepaymentEditorView: View {
                 }
                 Divider().overlay(FinTheme.lineSoft)
                 detailRow(label: "Date") {
-                    DatePicker("", selection: $date, displayedComponents: [.date, .hourAndMinute])
-                        .labelsHidden()
+                    ThemedDateField(date: $date, components: [.date, .hourAndMinute])
                 }
                 Divider().overlay(FinTheme.lineSoft)
                 detailRow(label: "Note") {

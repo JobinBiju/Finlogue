@@ -248,8 +248,7 @@ struct RecurringRuleEditorView: View {
             }
             Divider().overlay(FinTheme.lineSoft)
             detailRow(label: "First payment") {
-                DatePicker("", selection: $startDate, displayedComponents: .date)
-                    .labelsHidden()
+                ThemedDateField(date: $startDate)
             }
         }
     }

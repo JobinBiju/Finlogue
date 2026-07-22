@@ -212,13 +212,11 @@ struct TransactionFilterView: View {
                 if filterByDate {
                     Divider().overlay(FinTheme.lineSoft)
                     detailRow(label: "From") {
-                        DatePicker("", selection: $startDate, displayedComponents: .date)
-                            .labelsHidden()
+                        ThemedDateField(date: $startDate)
                     }
                     Divider().overlay(FinTheme.lineSoft)
                     detailRow(label: "To") {
-                        DatePicker("", selection: $endDate, displayedComponents: .date)
-                            .labelsHidden()
+                        ThemedDateField(date: $endDate)
                     }
                 }
             }

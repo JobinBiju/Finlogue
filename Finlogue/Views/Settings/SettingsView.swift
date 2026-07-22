@@ -174,12 +174,28 @@ struct SettingsView: View {
 
     private var currencySection: some View {
         Section {
-            Picker("Currency", selection: $currencyCode) {
-                ForEach(AppSettings.supportedCurrencyCodes, id: \.self) { code in
-                    Text("\(code) (\(CurrencyFormatter.symbol(code: code)))").tag(code)
+            Menu {
+                Picker("Currency", selection: $currencyCode) {
+                    ForEach(AppSettings.supportedCurrencyCodes, id: \.self) { code in
+                        Text("\(code) (\(CurrencyFormatter.symbol(code: code)))").tag(code)
+                    }
                 }
+            } label: {
+                HStack {
+                    Text("Currency")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(FinTheme.ink)
+                    Spacer()
+                    HStack(spacing: 6) {
+                        Text("\(currencyCode) (\(CurrencyFormatter.symbol(code: currencyCode)))")
+                            .font(.system(size: 15, weight: .semibold))
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .foregroundStyle(FinTheme.coral)
+                }
+                .contentShape(Rectangle())
             }
-            .font(.system(size: 15, weight: .medium))
             .onChange(of: currencyCode) {
                 store.persist()
             }
