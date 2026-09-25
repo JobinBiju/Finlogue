@@ -5,6 +5,7 @@
 
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @EnvironmentObject private var store: TransactionStore
@@ -23,6 +24,14 @@ struct SettingsView: View {
     @State private var pushAccounts = Self.launchIntoAccounts
     @State private var pushCategories = Self.launchIntoCategories
     @State private var pushPeople = Self.launchIntoPeople
+
+    // Backup / restore
+    @State private var exportURL: URL?
+    @State private var showShareSheet = false
+    @State private var showImporter = false
+    @State private var pendingImportURL: URL?
+    @State private var showImportConfirm = false
+    @State private var backupMessage: String?
 
     /// Test hook: `-openPeople` pushes the People screen on launch.
     private static var launchIntoPeople: Bool {
@@ -68,6 +77,7 @@ struct SettingsView: View {
                 manageSection
                 recurringSection
                 appearanceSection
+                dataSection
                 syncSection
             }
             .listStyle(.insetGrouped)
@@ -88,6 +98,104 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showAddRule) { RecurringRuleEditorView() }
             .sheet(item: $editingRule) { RecurringRuleEditorView(rule: $0) }
+            .sheet(isPresented: $showShareSheet) {
+                if let exportURL { ShareSheet(items: [exportURL]) }
+            }
+            .fileImporter(
+                isPresented: $showImporter,
+                allowedContentTypes: [.json, .data]
+            ) { result in
+                switch result {
+                case .success(let url):
+                    pendingImportURL = url
+                    showImportConfirm = true
+                case .failure(let error):
+                    backupMessage = error.localizedDescription
+                }
+            }
+            .alert("Replace all data?", isPresented: $showImportConfirm) {
+                Button("Cancel", role: .cancel) { pendingImportURL = nil }
+                Button("Import", role: .destructive) { performImport() }
+            } message: {
+                Text("Importing replaces everything currently in the app with the backup's contents. Consider exporting a backup first.")
+            }
+            .alert(
+                "Backup",
+                isPresented: Binding(
+                    get: { backupMessage != nil },
+                    set: { if !$0 { backupMessage = nil } }
+                )
+            ) {
+                Button("OK") { backupMessage = nil }
+            } message: {
+                Text(backupMessage ?? "")
+            }
+        }
+    }
+
+    // MARK: Data (backup / restore)
+
+    private var dataSection: some View {
+        Section {
+            Button {
+                FinHaptics.tap()
+                do {
+                    exportURL = try BackupService.writeExport(context: store.context, now: .now)
+                    showShareSheet = true
+                } catch {
+                    backupMessage = "Couldn't create backup: \(error.localizedDescription)"
+                }
+            } label: {
+                dataRow(title: "Export backup", symbol: "square.and.arrow.up", tint: FinTheme.ink)
+            }
+            .listRowBackground(FinTheme.paper)
+            .listRowSeparatorTint(FinTheme.lineSoft)
+
+            Button {
+                FinHaptics.tap()
+                showImporter = true
+            } label: {
+                dataRow(title: "Import backup", symbol: "square.and.arrow.down", tint: FinTheme.ink)
+            }
+            .listRowBackground(FinTheme.paper)
+        } header: {
+            SectionHeader("Data")
+        } footer: {
+            Text("Export saves everything to a file you can keep safe or move to another install. Import replaces the current data with a backup.")
+                .font(.system(size: 12))
+                .foregroundStyle(FinTheme.ink400)
+        }
+    }
+
+    private func dataRow(title: String, symbol: String, tint: Color) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: symbol)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(FinTheme.ink600)
+                .frame(width: 34, height: 34)
+                .background(FinTheme.paperInset, in: Circle())
+            Text(title)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(tint)
+            Spacer()
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+    }
+
+    private func performImport() {
+        guard let url = pendingImportURL else { return }
+        defer { pendingImportURL = nil }
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        do {
+            let data = try Data(contentsOf: url)
+            try BackupService.importData(data, context: store.context)
+            PhoneSyncEngine.shared.pushSnapshot()
+            FinHaptics.success()
+            backupMessage = "Backup imported successfully."
+        } catch {
+            backupMessage = "Couldn't import this file: \(error.localizedDescription)"
         }
     }
 
