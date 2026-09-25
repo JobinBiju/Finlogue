@@ -431,7 +431,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.jobin.finlogue;
+				PRODUCT_BUNDLE_IDENTIFIER = co.hoomans.finlogue;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -472,7 +472,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.jobin.finlogue;
+				PRODUCT_BUNDLE_IDENTIFIER = co.hoomans.finlogue;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -494,19 +494,19 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"FinWatch Watch App/Preview Content\"";
-				DEVELOPMENT_TEAM = TGNV7FRVGD;
+				DEVELOPMENT_TEAM = 792L89JQN6;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "FinWatch-Watch-App-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = FinWatch;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = dev.jobin.finlogue;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = co.hoomans.finlogue;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.jobin.finlogue.watchkitapp;
+				PRODUCT_BUNDLE_IDENTIFIER = co.hoomans.finlogue.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
@@ -526,19 +526,19 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"FinWatch Watch App/Preview Content\"";
-				DEVELOPMENT_TEAM = TGNV7FRVGD;
+				DEVELOPMENT_TEAM = 792L89JQN6;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "FinWatch-Watch-App-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = FinWatch;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = dev.jobin.finlogue;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = co.hoomans.finlogue;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.jobin.finlogue.watchkitapp;
+				PRODUCT_BUNDLE_IDENTIFIER = co.hoomans.finlogue.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
