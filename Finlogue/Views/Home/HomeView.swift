@@ -79,10 +79,11 @@ struct HomeView: View {
     }
 
     /// Only your own share of each expense counts as spending; amounts split out
-    /// to friends are excluded.
+    /// to friends and settlement payments to people are excluded (the spending
+    /// behind a settlement was already counted when it happened).
     private var monthExpense: Double {
         monthTransactions
-            .filter { $0.type == .expense }
+            .filter { $0.type == .expense && !$0.isSettlement }
             .reduce(0) { $0 + $1.myShare }
     }
 

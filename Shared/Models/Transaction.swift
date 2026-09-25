@@ -23,12 +23,18 @@ final class Transaction {
     /// Destination account — set only for transfers.
     var toAccount: Account?
     @Relationship(deleteRule: .nullify) var category: Category?
-    /// For a settlement (repayment) transaction, the person who paid you back.
-    /// Expense sharing is tracked via `splits`, not this field.
+    /// For a settlement transaction, the person money moved to/from; for a
+    /// paid-by-person expense, who covered it. Expense sharing is tracked via
+    /// `splits`, not this field.
     var person: Person?
-    /// True when this is a repayment logged from a person's ledger. Excluded
-    /// from income/insights, but still moves the account balance like income.
+    /// True when this is a settlement logged from a person's ledger — money
+    /// they paid you (income) or you paid them (expense). Excluded from
+    /// income/expense stats and insights, but still moves the account balance.
     var isSettlement: Bool = false
+    /// True when the linked `person` paid this expense on your behalf: it
+    /// counts as your spending in insights and budgets, touches no account,
+    /// and adds to what you owe them.
+    var paidByPerson: Bool = false
     /// Friends' shares of this transaction. Cascade-deleted with it.
     @Relationship(deleteRule: .cascade, inverse: \TransactionSplit.transaction)
     var splits: [TransactionSplit]? = []
@@ -48,6 +54,7 @@ final class Transaction {
         category: Category? = nil,
         person: Person? = nil,
         isSettlement: Bool = false,
+        paidByPerson: Bool = false,
         createdAt: Date = .now,
         updatedAt: Date = .now
     ) {
@@ -63,6 +70,7 @@ final class Transaction {
         self.category = category
         self.person = person
         self.isSettlement = isSettlement
+        self.paidByPerson = paidByPerson
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }

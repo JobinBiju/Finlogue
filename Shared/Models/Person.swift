@@ -54,16 +54,33 @@ final class Person {
         (splits ?? []).reduce(0) { $0 + $1.shareAmount }
     }
 
-    /// Total this person has paid back (settlement transactions).
+    /// Total this person has paid you (settlement income transactions) —
+    /// repayments, or money they lent/covered for you.
     var repaid: Double {
         (transactions ?? [])
-            .filter { $0.isSettlement }
+            .filter { $0.isSettlement && $0.type == .income }
+            .reduce(0) { $0 + $1.amount }
+    }
+
+    /// Total you've paid this person (settlement expense transactions) —
+    /// repaying what you owe them, or lending them money directly.
+    var paidToThem: Double {
+        (transactions ?? [])
+            .filter { $0.isSettlement && $0.type == .expense }
+            .reduce(0) { $0 + $1.amount }
+    }
+
+    /// Total this person has spent on your behalf (paid-by-person expenses) —
+    /// your spending, but their money, so you owe it back.
+    var borrowed: Double {
+        (transactions ?? [])
+            .filter { $0.paidByPerson && $0.type == .expense }
             .reduce(0) { $0 + $1.amount }
     }
 
     /// What's still outstanding. Positive = they owe you; negative = you owe
-    /// them (overpaid).
-    var outstanding: Double { owed - repaid }
+    /// them.
+    var outstanding: Double { owed + paidToThem - repaid - borrowed }
 
     /// Two-letter initials for the avatar badge.
     var initials: String {

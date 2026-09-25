@@ -212,6 +212,7 @@ enum SnapshotBuilder {
             transaction.category = dto.categoryID.flatMap { categoriesByID[$0] }
             transaction.person = dto.personID.flatMap { peopleByID[$0] }
             transaction.isSettlement = dto.isSettlement
+            transaction.paidByPerson = dto.paidByPerson
             transaction.createdAt = dto.createdAt
             transaction.updatedAt = dto.updatedAt
         }

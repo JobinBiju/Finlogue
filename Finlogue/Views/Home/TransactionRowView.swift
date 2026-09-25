@@ -60,7 +60,7 @@ struct TransactionRowView: View {
 
     @ViewBuilder
     private var badge: some View {
-        if transaction.isSettlement, let person = transaction.person {
+        if transaction.isSettlement || transaction.paidByPerson, let person = transaction.person {
             initialsBadge(person.initials, color: Color(hex: person.colorHex))
         } else if transaction.isSplit {
             Image(systemName: "person.2.fill")
@@ -87,7 +87,9 @@ struct TransactionRowView: View {
 
     private var iconSymbol: String {
         if isTransfer { return "arrow.left.arrow.right" }
-        if transaction.isSettlement { return "arrow.down.left" }
+        if transaction.isSettlement {
+            return transaction.type == .income ? "arrow.down.left" : "arrow.up.right"
+        }
         if transaction.type == .income {
             return transaction.category?.symbol ?? "briefcase"
         }
@@ -102,7 +104,8 @@ struct TransactionRowView: View {
 
     private var subtitle: String {
         if transaction.isSettlement {
-            return "Repayment" + (transaction.account.map { " · \($0.name)" } ?? "")
+            let kind = transaction.type == .income ? "Repayment" : "Settled up"
+            return kind + (transaction.account.map { " · \($0.name)" } ?? "")
         }
         if isTransfer {
             let from = transaction.account?.name ?? "?"
@@ -110,7 +113,9 @@ struct TransactionRowView: View {
             return "\(from) → \(to)"
         }
         var parts = [transaction.category?.name ?? "Uncategorized"]
-        if let account = transaction.account {
+        if transaction.paidByPerson, let person = transaction.person {
+            parts.append("paid by \(person.name)")
+        } else if let account = transaction.account {
             parts.append(account.name)
         }
         if transaction.isSplit {

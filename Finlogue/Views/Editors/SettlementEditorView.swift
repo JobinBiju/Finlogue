@@ -1,16 +1,17 @@
 //
-//  RepaymentEditorView.swift
+//  SettlementEditorView.swift
 //  Finlogue
 //
-//  Logs a repayment from a person: money returns to an account and their
-//  outstanding drops. Recorded as a settlement income transaction, so it's kept
-//  out of income stats and insights.
+//  Logs a settlement with a person, in either direction: money they paid you
+//  (repayment/loan into an account) or money you paid them (settling what you
+//  owe, or lending). Recorded as a settlement transaction, so it moves the
+//  account balance but stays out of income/expense stats and insights.
 //
 
 import SwiftUI
 import SwiftData
 
-struct RepaymentEditorView: View {
+struct SettlementEditorView: View {
     let person: Person
 
     @EnvironmentObject private var store: TransactionStore
@@ -18,6 +19,7 @@ struct RepaymentEditorView: View {
 
     @Query(sort: \Account.createdAt) private var accounts: [Account]
 
+    @State private var direction: SettlementDirection
     @State private var amountText = ""
     @State private var date = Date.now
     @State private var note = ""
@@ -25,6 +27,11 @@ struct RepaymentEditorView: View {
     @FocusState private var amountFocused: Bool
 
     @AppStorage(AppSettings.lastAccountIDKey) private var lastAccountID = ""
+
+    init(person: Person, direction: SettlementDirection = .received) {
+        self.person = person
+        _direction = State(initialValue: direction)
+    }
 
     private var amount: Double? {
         let groupSeparator = Locale.current.groupingSeparator ?? ","
@@ -52,7 +59,7 @@ struct RepaymentEditorView: View {
                     .font(.system(size: 16, weight: .medium))
                     .foregroundStyle(FinTheme.ink600)
                 Spacer()
-                Text("Repayment")
+                Text("Settle up")
                     .font(.system(size: 16, weight: .bold))
                     .foregroundStyle(FinTheme.ink)
                 Spacer()
@@ -68,7 +75,13 @@ struct RepaymentEditorView: View {
 
             ScrollView {
                 VStack(spacing: 24) {
-                    Text("From \(person.name)")
+                    Picker("Direction", selection: $direction) {
+                        Text("\(person.name) paid").tag(SettlementDirection.received)
+                        Text("You paid").tag(SettlementDirection.paid)
+                    }
+                    .pickerStyle(.segmented)
+
+                    Text(direction == .received ? "From \(person.name)" : "To \(person.name)")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(FinTheme.ink400)
 
@@ -90,8 +103,12 @@ struct RepaymentEditorView: View {
                     .contentShape(Rectangle())
                     .onTapGesture { amountFocused = true }
 
-                    if person.outstanding > 0 {
-                        Text("Outstanding \(CurrencyFormatter.string(person.outstanding))")
+                    if person.outstanding > 0.005 {
+                        Text("\(person.name) owes you \(CurrencyFormatter.string(person.outstanding))")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(FinTheme.ink400)
+                    } else if person.outstanding < -0.005 {
+                        Text("You owe \(person.name) \(CurrencyFormatter.string(abs(person.outstanding)))")
                             .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(FinTheme.ink400)
                     }
@@ -114,7 +131,7 @@ struct RepaymentEditorView: View {
                 .finSectionLabel()
                 .padding(.leading, 4)
             VStack(spacing: 0) {
-                detailRow(label: "Into account") {
+                detailRow(label: direction == .received ? "Into account" : "From account") {
                     Menu {
                         ForEach(accounts.grouped, id: \.group) { entry in
                             Section(entry.group.rawValue) {
@@ -182,8 +199,8 @@ struct RepaymentEditorView: View {
         guard let amount else { return }
         let account = accounts.first { $0.id == selectedAccountID }
         let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
-        store.recordRepayment(
-            person: person, amount: amount, date: date,
+        store.recordSettlement(
+            person: person, direction: direction, amount: amount, date: date,
             account: account, note: trimmedNote.isEmpty ? nil : trimmedNote
         )
         if let account { lastAccountID = account.id.uuidString }

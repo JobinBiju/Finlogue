@@ -9,6 +9,16 @@
 import Foundation
 import SwiftData
 
+/// Which way money moved in a person settlement.
+enum SettlementDirection: String, Identifiable {
+    /// They paid you — a repayment of what they owe, or a loan to you.
+    case received
+    /// You paid them — settling what you owe, or lending them money.
+    case paid
+
+    var id: String { rawValue }
+}
+
 @MainActor
 final class TransactionStore: ObservableObject {
     let container: ModelContainer
@@ -112,19 +122,21 @@ final class TransactionStore: ObservableObject {
         persist()
     }
 
-    /// Logs a repayment from a person as a settlement income transaction: it
-    /// returns money to the account and reduces the person's outstanding, but
-    /// is kept out of income stats and insights.
-    func recordRepayment(
+    /// Logs a settlement with a person: money they paid you (`.received`,
+    /// income) or money you paid them (`.paid`, expense). Settlements move the
+    /// account balance when one is chosen, but are kept out of income/expense
+    /// stats and insights — the underlying spending was already counted.
+    func recordSettlement(
         person: Person,
+        direction: SettlementDirection,
         amount: Double,
         date: Date,
         account: Account?,
         note: String?
     ) {
         let transaction = Transaction(
-            type: .income,
-            name: "Repayment · \(person.name)",
+            type: direction == .received ? .income : .expense,
+            name: "\(direction == .received ? "Repayment" : "Paid") · \(person.name)",
             amount: amount,
             date: date,
             note: note,
@@ -132,6 +144,32 @@ final class TransactionStore: ObservableObject {
             category: nil,
             person: person,
             isSettlement: true
+        )
+        context.insert(transaction)
+        persist()
+    }
+
+    /// Logs an expense someone else paid on your behalf: it counts toward your
+    /// insights and budgets like any spending, touches no account, and adds to
+    /// what you owe that person.
+    func recordBorrowedExpense(
+        person: Person,
+        name: String,
+        amount: Double,
+        category: Category?,
+        date: Date,
+        note: String?
+    ) {
+        let transaction = Transaction(
+            type: .expense,
+            name: name,
+            amount: amount,
+            date: date,
+            note: note,
+            account: nil,
+            category: category,
+            person: person,
+            paidByPerson: true
         )
         context.insert(transaction)
         persist()
@@ -420,7 +458,7 @@ final class TransactionStore: ObservableObject {
         let defaults = UserDefaults.standard
         guard !defaults.bool(forKey: AppSettings.didMigratePersonToSplitsKey) else { return }
         let tagged = (try? context.fetch(FetchDescriptor<Transaction>(
-            predicate: #Predicate { $0.person != nil && $0.isSettlement == false }
+            predicate: #Predicate { $0.person != nil && $0.isSettlement == false && $0.paidByPerson == false }
         ))) ?? []
         for transaction in tagged {
             guard let person = transaction.person, !(transaction.isSplit) else {

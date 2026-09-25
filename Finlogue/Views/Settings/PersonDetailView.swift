@@ -16,33 +16,39 @@ struct PersonDetailView: View {
     @EnvironmentObject private var tabBarVisibility: TabBarVisibility
     @Environment(\.dismiss) private var dismiss
 
-    @State private var showRepayment = false
+    @State private var showSettlement = false
+    @State private var showBorrowed = false
     @State private var showEdit = false
 
     private enum LedgerEntry: Identifiable {
         case share(TransactionSplit)
-        case repayment(Transaction)
+        case settlement(Transaction)
+        case borrowed(Transaction)
 
         var id: UUID {
             switch self {
             case .share(let s): s.id
-            case .repayment(let t): t.id
+            case .settlement(let t), .borrowed(let t): t.id
             }
         }
         var date: Date {
             switch self {
             case .share(let s): s.transaction?.date ?? s.createdAt
-            case .repayment(let t): t.date
+            case .settlement(let t), .borrowed(let t): t.date
             }
         }
     }
 
     private var ledger: [LedgerEntry] {
         let shares = (person.splits ?? []).map(LedgerEntry.share)
-        let repayments = (person.transactions ?? [])
+        let transactions = person.transactions ?? []
+        let settlements = transactions
             .filter { $0.isSettlement }
-            .map(LedgerEntry.repayment)
-        return (shares + repayments).sorted { $0.date > $1.date }
+            .map(LedgerEntry.settlement)
+        let borrowed = transactions
+            .filter { $0.paidByPerson }
+            .map(LedgerEntry.borrowed)
+        return (shares + settlements + borrowed).sorted { $0.date > $1.date }
     }
 
     var body: some View {
@@ -67,8 +73,14 @@ struct PersonDetailView: View {
         .contentMargins(.bottom, 24, for: .scrollContent)
         .toolbar(.hidden, for: .navigationBar)
         .onAppear { tabBarVisibility.isHidden = true }
-        .sheet(isPresented: $showRepayment) {
-            RepaymentEditorView(person: person)
+        .sheet(isPresented: $showSettlement) {
+            SettlementEditorView(
+                person: person,
+                direction: person.outstanding < -0.005 ? .paid : .received
+            )
+        }
+        .sheet(isPresented: $showBorrowed) {
+            BorrowedExpenseEditorView(person: person)
         }
         .sheet(isPresented: $showEdit) {
             PersonEditorView(person: person)
@@ -146,23 +158,44 @@ struct PersonDetailView: View {
                     }
                 }
 
-                Button {
-                    FinHaptics.tap()
-                    showRepayment = true
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "arrow.down.left")
-                            .font(.system(size: 15, weight: .semibold))
-                        Text("Record repayment")
-                            .font(.system(size: 15, weight: .bold))
+                VStack(spacing: 10) {
+                    Button {
+                        FinHaptics.tap()
+                        showSettlement = true
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "arrow.left.arrow.right")
+                                .font(.system(size: 15, weight: .semibold))
+                            Text("Settle up")
+                                .font(.system(size: 15, weight: .bold))
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(FinTheme.coral, in: Capsule())
+                        .shadow(color: FinTheme.coral.opacity(0.28), radius: 12, x: 0, y: 8)
                     }
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(FinTheme.coral, in: Capsule())
-                    .shadow(color: FinTheme.coral.opacity(0.28), radius: 12, x: 0, y: 8)
+                    .buttonStyle(.plain)
+
+                    Button {
+                        FinHaptics.tap()
+                        showBorrowed = true
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 15, weight: .semibold))
+                            Text("They paid for me")
+                                .font(.system(size: 15, weight: .bold))
+                        }
+                        .foregroundStyle(FinTheme.ink)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background {
+                            Capsule().strokeBorder(FinTheme.line, lineWidth: 1.5)
+                        }
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
             .padding(20)
             .frame(maxWidth: .infinity)
@@ -196,17 +229,41 @@ struct PersonDetailView: View {
                 date: entry.date,
                 breakdown: billBreakdown(split.transaction),
                 amount: split.shareAmount,
-                positive: true
+                sign: "+",
+                amountColor: FinTheme.ink
             )
-        case .repayment(let transaction):
+        case .settlement(let transaction) where transaction.type == .income:
             row(
                 symbol: "arrow.down.left",
                 tint: FinTheme.green,
-                title: "Repayment",
+                title: "\(person.name) paid you",
                 date: entry.date,
                 breakdown: nil,
                 amount: transaction.amount,
-                positive: false
+                sign: "−",
+                amountColor: FinTheme.green
+            )
+        case .settlement(let transaction):
+            row(
+                symbol: "arrow.up.right",
+                tint: FinTheme.coral,
+                title: "You paid \(person.name)",
+                date: entry.date,
+                breakdown: nil,
+                amount: transaction.amount,
+                sign: "+",
+                amountColor: FinTheme.ink
+            )
+        case .borrowed(let transaction):
+            row(
+                symbol: transaction.category?.symbol ?? "cart",
+                tint: Color(hex: transaction.category?.colorHex ?? "#8C877B"),
+                title: transaction.name,
+                date: entry.date,
+                breakdown: "Paid by \(person.name)",
+                amount: transaction.amount,
+                sign: "−",
+                amountColor: FinTheme.red
             )
         }
     }
@@ -223,7 +280,7 @@ struct PersonDetailView: View {
 
     private func row(
         symbol: String, tint: Color, title: String, date: Date,
-        breakdown: String?, amount: Double, positive: Bool
+        breakdown: String?, amount: Double, sign: String, amountColor: Color
     ) -> some View {
         HStack(spacing: 12) {
             Image(systemName: symbol)
@@ -247,9 +304,9 @@ struct PersonDetailView: View {
                 }
             }
             Spacer()
-            Text("\(positive ? "+" : "−")\(CurrencyFormatter.string(amount))")
+            Text("\(sign)\(CurrencyFormatter.string(amount))")
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(positive ? FinTheme.ink : FinTheme.green)
+                .foregroundStyle(amountColor)
                 .monospacedDigit()
         }
         .padding(.vertical, 4)

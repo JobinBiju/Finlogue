@@ -79,13 +79,17 @@ struct WatchTransactionListView: View {
     }
 
     private func iconSymbol(_ transaction: Transaction) -> String {
-        if transaction.isSettlement { return "arrow.down.left" }
+        if transaction.isSettlement {
+            return transaction.type == .income ? "arrow.down.left" : "arrow.up.right"
+        }
         if transaction.type == .transfer { return "arrow.left.arrow.right" }
         return transaction.category?.symbol ?? "questionmark"
     }
 
     private func iconColor(_ transaction: Transaction) -> Color {
-        if transaction.isSettlement { return FinTheme.green }
+        if transaction.isSettlement {
+            return transaction.type == .income ? FinTheme.green : FinTheme.coral
+        }
         if transaction.type == .transfer { return FinTheme.slate }
         return Color(hex: transaction.category?.colorHex ?? "#94A3B8")
     }

@@ -130,6 +130,7 @@ struct TransactionDTO: Codable, Identifiable {
     var categoryID: UUID?
     var personID: UUID?
     var isSettlement: Bool
+    var paidByPerson: Bool
     var createdAt: Date
     var updatedAt: Date
 
@@ -146,13 +147,14 @@ struct TransactionDTO: Codable, Identifiable {
         categoryID = transaction.category?.id
         personID = transaction.person?.id
         isSettlement = transaction.isSettlement
+        paidByPerson = transaction.paidByPerson
         createdAt = transaction.createdAt
         updatedAt = transaction.updatedAt
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, type, name, amount, charges, date, note
-        case accountID, toAccountID, categoryID, personID, isSettlement, createdAt, updatedAt
+        case accountID, toAccountID, categoryID, personID, isSettlement, paidByPerson, createdAt, updatedAt
     }
 
     // Custom decode so snapshots from older builds (no charges/personID/
@@ -171,6 +173,7 @@ struct TransactionDTO: Codable, Identifiable {
         categoryID = try container.decodeIfPresent(UUID.self, forKey: .categoryID)
         personID = try container.decodeIfPresent(UUID.self, forKey: .personID)
         isSettlement = try container.decodeIfPresent(Bool.self, forKey: .isSettlement) ?? false
+        paidByPerson = try container.decodeIfPresent(Bool.self, forKey: .paidByPerson) ?? false
         createdAt = try container.decode(Date.self, forKey: .createdAt)
         updatedAt = try container.decode(Date.self, forKey: .updatedAt)
     }
