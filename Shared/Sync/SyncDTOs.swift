@@ -117,6 +117,20 @@ struct TransactionSplitDTO: Codable, Identifiable {
     }
 }
 
+struct RecurringSplitDTO: Codable, Identifiable {
+    var id: UUID
+    var ruleID: UUID?
+    var personID: UUID?
+    var shareAmount: Double
+
+    init(from split: RecurringSplit) {
+        id = split.id
+        ruleID = split.rule?.id
+        personID = split.person?.id
+        shareAmount = split.shareAmount
+    }
+}
+
 struct TransactionDTO: Codable, Identifiable {
     var id: UUID
     var type: TransactionType
@@ -247,11 +261,12 @@ struct SyncSnapshot: Codable {
     var people: [PersonDTO] = []
     var splits: [TransactionSplitDTO] = []
     var creditGroups: [CreditGroupDTO] = []
+    var recurringSplits: [RecurringSplitDTO] = []
 
     private enum CodingKeys: String, CodingKey {
         case version, generatedAt, currencyCode, themeID
         case accounts, categories, budgets, recurringRules, transactions
-        case people, splits, creditGroups
+        case people, splits, creditGroups, recurringSplits
     }
 
     init(
@@ -266,7 +281,8 @@ struct SyncSnapshot: Codable {
         transactions: [TransactionDTO],
         people: [PersonDTO] = [],
         splits: [TransactionSplitDTO] = [],
-        creditGroups: [CreditGroupDTO] = []
+        creditGroups: [CreditGroupDTO] = [],
+        recurringSplits: [RecurringSplitDTO] = []
     ) {
         self.version = version
         self.generatedAt = generatedAt
@@ -280,9 +296,10 @@ struct SyncSnapshot: Codable {
         self.people = people
         self.splits = splits
         self.creditGroups = creditGroups
+        self.recurringSplits = recurringSplits
     }
 
-    // Tolerate snapshots from older builds that predate people/splits/creditGroups.
+    // Tolerate snapshots from older builds that predate newer collections.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         version = try container.decodeIfPresent(Int.self, forKey: .version) ?? 1
@@ -298,6 +315,7 @@ struct SyncSnapshot: Codable {
         people = try container.decodeIfPresent([PersonDTO].self, forKey: .people) ?? []
         splits = try container.decodeIfPresent([TransactionSplitDTO].self, forKey: .splits) ?? []
         creditGroups = try container.decodeIfPresent([CreditGroupDTO].self, forKey: .creditGroups) ?? []
+        recurringSplits = try container.decodeIfPresent([RecurringSplitDTO].self, forKey: .recurringSplits) ?? []
     }
 }
 

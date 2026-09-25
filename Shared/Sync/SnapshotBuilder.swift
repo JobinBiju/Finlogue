@@ -23,18 +23,17 @@ enum SnapshotBuilder {
         let budgets = try context.fetch(FetchDescriptor<Budget>())
         let rules = try context.fetch(FetchDescriptor<RecurringRule>(sortBy: [SortDescriptor(\.name)]))
         let people = try context.fetch(FetchDescriptor<Person>(sortBy: [SortDescriptor(\.name)]))
-        var transactionDescriptor = FetchDescriptor<Transaction>(
+        let recurringSplits = try context.fetch(FetchDescriptor<RecurringSplit>())
+        let transactionDescriptor = FetchDescriptor<Transaction>(
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         )
-        transactionDescriptor.fetchLimit = maxTransactions
         let transactions = try context.fetch(transactionDescriptor)
 
-        // Only ship splits belonging to transactions in the (trimmed) snapshot.
         let transactionIDs = Set(transactions.map(\.id))
         let splits = try context.fetch(FetchDescriptor<TransactionSplit>())
             .filter { $0.transaction.map { transactionIDs.contains($0.id) } ?? false }
 
-        return SyncSnapshot(
+        var snapshot = SyncSnapshot(
             generatedAt: .now,
             currencyCode: AppSettings.currencyCode,
             themeID: ThemeManager.shared.theme.rawValue,
@@ -45,8 +44,50 @@ enum SnapshotBuilder {
             transactions: transactions.map(TransactionDTO.init),
             people: people.map(PersonDTO.init),
             splits: splits.map(TransactionSplitDTO.init),
-            creditGroups: creditGroups.map(CreditGroupDTO.init)
+            creditGroups: creditGroups.map(CreditGroupDTO.init),
+            recurringSplits: recurringSplits.map(RecurringSplitDTO.init)
         )
+        trim(&snapshot, keep: maxTransactions)
+        return snapshot
+    }
+
+    /// Drops the oldest transactions beyond `keep`, folding their balance
+    /// effect into each account's shipped `openingBalance`. Without this the
+    /// watch, which recomputes balances from opening + transactions, drifts
+    /// from the phone as soon as history is trimmed to fit the payload.
+    static func trim(_ snapshot: inout SyncSnapshot, keep: Int) {
+        guard snapshot.transactions.count > keep else { return }
+        var indexByID: [UUID: Int] = [:]
+        for (index, account) in snapshot.accounts.enumerated() {
+            indexByID[account.id] = index
+        }
+
+        // Transactions are sorted newest-first; everything past `keep` is dropped.
+        for dto in snapshot.transactions[keep...] {
+            if let index = dto.accountID.flatMap({ indexByID[$0] }) {
+                // Effect on the source account's balance (bank semantics).
+                var delta: Double
+                switch dto.type {
+                case .income: delta = dto.amount
+                case .expense, .transfer: delta = -dto.amount
+                }
+                delta -= dto.charges
+                // A card's openingBalance is opening *outstanding*, which moves
+                // opposite to a bank balance.
+                let isCard = snapshot.accounts[index].type == .creditCard
+                snapshot.accounts[index].openingBalance += isCard ? -delta : delta
+            }
+            if dto.type == .transfer, let index = dto.toAccountID.flatMap({ indexByID[$0] }) {
+                let isCard = snapshot.accounts[index].type == .creditCard
+                snapshot.accounts[index].openingBalance += isCard ? -dto.amount : dto.amount
+            }
+        }
+
+        snapshot.transactions = Array(snapshot.transactions.prefix(keep))
+        let keptIDs = Set(snapshot.transactions.map(\.id))
+        snapshot.splits = snapshot.splits.filter {
+            $0.transactionID.map(keptIDs.contains) ?? false
+        }
     }
 
     /// Encodes the snapshot, trimming oldest transactions until it fits the payload limit.
@@ -56,7 +97,7 @@ enum SnapshotBuilder {
         var trimmed = snapshot
         var data = try encoder.encode(trimmed)
         while data.count > maxPayloadBytes && !trimmed.transactions.isEmpty {
-            trimmed.transactions.removeLast(max(1, trimmed.transactions.count / 10))
+            trim(&trimmed, keep: trimmed.transactions.count - max(1, trimmed.transactions.count / 10))
             data = try encoder.encode(trimmed)
         }
         return data
@@ -293,6 +334,28 @@ enum SnapshotBuilder {
             rule.lastPostedDate = dto.lastPostedDate
             rule.isActive = dto.isActive
             rule.updatedAt = dto.updatedAt
+        }
+
+        // Recurring split templates (reference rules + people)
+        let existingRecurringSplits = try context.fetch(FetchDescriptor<RecurringSplit>())
+        var recurringSplitsByID: [UUID: RecurringSplit] = [:]
+        for split in existingRecurringSplits {
+            if snapshot.recurringSplits.contains(where: { $0.id == split.id }) {
+                recurringSplitsByID[split.id] = split
+            } else {
+                context.delete(split)
+            }
+        }
+        for dto in snapshot.recurringSplits {
+            let split = recurringSplitsByID[dto.id] ?? {
+                let created = RecurringSplit(id: dto.id, shareAmount: dto.shareAmount)
+                context.insert(created)
+                recurringSplitsByID[dto.id] = created
+                return created
+            }()
+            split.shareAmount = dto.shareAmount
+            split.rule = dto.ruleID.flatMap { rulesByID[$0] }
+            split.person = dto.personID.flatMap { peopleByID[$0] }
         }
 
         try context.save()
