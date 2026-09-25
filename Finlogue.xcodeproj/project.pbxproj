@@ -10,6 +10,10 @@
 		1818C3912DBF919400762018 /* WatchConnectivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1818C3902DBF919400762018 /* WatchConnectivity.framework */; };
 		18B2BF542DB6916800B54191 /* FinWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 18B2BF472DB6916700B54191 /* FinWatch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		18B2BF6F2DB7464200B54191 /* WatchConnectivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 18B2BF6E2DB7464200B54191 /* WatchConnectivity.framework */; };
+		18C0EE080000000000B008 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18C0EE030000000000B003 /* ShareViewController.swift */; };
+		18C0EE090000000000B009 /* SharedInboxQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18C0EE060000000000B006 /* SharedInboxQueue.swift */; };
+		18C0EE0A0000000000B00A /* SharedInboxQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18C0EE060000000000B006 /* SharedInboxQueue.swift */; };
+		18C0EE0B0000000000B00B /* FinlogueShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 18C0EE070000000000B007 /* FinlogueShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -19,6 +23,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 18B2BF462DB6916700B54191;
 			remoteInfo = "FinWatch Watch App";
+		};
+		18C0EE150000000000B015 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1836A25E2DB28F8B008895A4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 18C0EE100000000000B010;
+			remoteInfo = FinlogueShare;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -44,6 +55,17 @@
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		18C0EE0F0000000000B00F /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				18C0EE0B0000000000B00B /* FinlogueShare.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -51,6 +73,11 @@
 		1836A2662DB28F8B008895A4 /* Finlogue.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Finlogue.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		18B2BF472DB6916700B54191 /* FinWatch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "FinWatch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		18B2BF6E2DB7464200B54191 /* WatchConnectivity.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WatchConnectivity.framework; path = System/Library/Frameworks/WatchConnectivity.framework; sourceTree = SDKROOT; };
+		18C0EE030000000000B003 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		18C0EE040000000000B004 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		18C0EE050000000000B005 /* FinlogueShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FinlogueShare.entitlements; sourceTree = "<group>"; };
+		18C0EE060000000000B006 /* SharedInboxQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedInboxQueue.swift; sourceTree = "<group>"; };
+		18C0EE070000000000B007 /* FinlogueShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FinlogueShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -119,6 +146,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		18C0EE0D0000000000B00D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -128,6 +162,8 @@
 				1836A2682DB28F8B008895A4 /* Finlogue */,
 				18B2BF482DB6916700B54191 /* FinWatch Watch App */,
 				18C0DE032E0000000000A003 /* Shared */,
+				18C0EE020000000000B002 /* SharedInbox */,
+				18C0EE010000000000B001 /* FinlogueShare */,
 				189C8FAE2DB6530100A2E716 /* Frameworks */,
 				1836A2672DB28F8B008895A4 /* Products */,
 			);
@@ -138,6 +174,7 @@
 			children = (
 				1836A2662DB28F8B008895A4 /* Finlogue.app */,
 				18B2BF472DB6916700B54191 /* FinWatch Watch App.app */,
+				18C0EE070000000000B007 /* FinlogueShare.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -149,6 +186,24 @@
 				18B2BF6E2DB7464200B54191 /* WatchConnectivity.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		18C0EE010000000000B001 /* FinlogueShare */ = {
+			isa = PBXGroup;
+			children = (
+				18C0EE030000000000B003 /* ShareViewController.swift */,
+				18C0EE040000000000B004 /* Info.plist */,
+				18C0EE050000000000B005 /* FinlogueShare.entitlements */,
+			);
+			path = FinlogueShare;
+			sourceTree = "<group>";
+		};
+		18C0EE020000000000B002 /* SharedInbox */ = {
+			isa = PBXGroup;
+			children = (
+				18C0EE060000000000B006 /* SharedInboxQueue.swift */,
+			);
+			path = SharedInbox;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -163,11 +218,13 @@
 				1836A2642DB28F8B008895A4 /* Resources */,
 				189C8F992DB6517F00A2E716 /* Embed Watch Content */,
 				189C8FAD2DB652A300A2E716 /* Embed Frameworks */,
+				18C0EE0F0000000000B00F /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				18B2BF532DB6916800B54191 /* PBXTargetDependency */,
+				18C0EE140000000000B014 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				1836A2682DB28F8B008895A4 /* Finlogue */,
@@ -203,6 +260,25 @@
 			productReference = 18B2BF472DB6916700B54191 /* FinWatch Watch App.app */;
 			productType = "com.apple.product-type.application";
 		};
+		18C0EE100000000000B010 /* FinlogueShare */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 18C0EE130000000000B013 /* Build configuration list for PBXNativeTarget "FinlogueShare" */;
+			buildPhases = (
+				18C0EE0C0000000000B00C /* Sources */,
+				18C0EE0D0000000000B00D /* Frameworks */,
+				18C0EE0E0000000000B00E /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FinlogueShare;
+			packageProductDependencies = (
+			);
+			productName = FinlogueShare;
+			productReference = 18C0EE070000000000B007 /* FinlogueShare.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -218,6 +294,9 @@
 					};
 					18B2BF462DB6916700B54191 = {
 						CreatedOnToolsVersion = 16.0;
+					};
+					18C0EE100000000000B010 = {
+						CreatedOnToolsVersion = 26.2;
 					};
 				};
 			};
@@ -237,6 +316,7 @@
 			targets = (
 				1836A2652DB28F8B008895A4 /* Finlogue */,
 				18B2BF462DB6916700B54191 /* FinWatch Watch App */,
+				18C0EE100000000000B010 /* FinlogueShare */,
 			);
 		};
 /* End PBXProject section */
@@ -256,6 +336,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		18C0EE0E0000000000B00E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -263,6 +350,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				18C0EE0A0000000000B00A /* SharedInboxQueue.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -273,6 +361,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		18C0EE0C0000000000B00C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				18C0EE080000000000B008 /* ShareViewController.swift in Sources */,
+				18C0EE090000000000B009 /* SharedInboxQueue.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -280,6 +377,11 @@
 			isa = PBXTargetDependency;
 			target = 18B2BF462DB6916700B54191 /* FinWatch Watch App */;
 			targetProxy = 18B2BF522DB6916800B54191 /* PBXContainerItemProxy */;
+		};
+		18C0EE140000000000B014 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 18C0EE100000000000B010 /* FinlogueShare */;
+			targetProxy = 18C0EE150000000000B015 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -549,6 +651,62 @@
 			};
 			name = Release;
 		};
+		18C0EE110000000000B011 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = FinlogueShare/FinlogueShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 792L89JQN6;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FinlogueShare/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Add to Finlogue";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = co.hoomans.finlogue.share;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		18C0EE120000000000B012 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = FinlogueShare/FinlogueShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 792L89JQN6;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FinlogueShare/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Add to Finlogue";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = co.hoomans.finlogue.share;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -575,6 +733,15 @@
 			buildConfigurations = (
 				18B2BF552DB6916800B54191 /* Debug */,
 				18B2BF562DB6916800B54191 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		18C0EE130000000000B013 /* Build configuration list for PBXNativeTarget "FinlogueShare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				18C0EE110000000000B011 /* Debug */,
+				18C0EE120000000000B012 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

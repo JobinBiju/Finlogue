@@ -28,6 +28,10 @@ struct AccountEditorView: View {
     @State private var selectedGroupID: UUID?
     @State private var groupName = ""
     @State private var sharedLimitText = ""
+    // Bank-message identifiers: the account (or credit card) number, plus the
+    // debit card drawing on a bank account.
+    @State private var primaryLast4 = ""
+    @State private var debitCardLast4 = ""
 
     private var canSave: Bool {
         guard !name.trimmingCharacters(in: .whitespaces).isEmpty else { return false }
@@ -80,6 +84,7 @@ struct AccountEditorView: View {
                     } else {
                         balanceCard
                     }
+                    messageDigitsCard
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 24)
@@ -314,6 +319,42 @@ struct AccountEditorView: View {
         .padding(.vertical, 12)
     }
 
+    /// Last-4 digits let bank-message import book a transaction against this
+    /// account. A savings account is quoted by both its account number and its
+    /// debit card number, so both are captured.
+    private var messageDigitsCard: some View {
+        labeledCard("Bank message digits") {
+            digitsRow(
+                label: type == .creditCard ? "Card ending" : "Account ending",
+                text: $primaryLast4
+            )
+            if type == .bank {
+                Divider().overlay(FinTheme.lineSoft)
+                digitsRow(label: "Debit card ending", text: $debitCardLast4)
+            }
+        }
+    }
+
+    private func digitsRow(label: String, text: Binding<String>) -> some View {
+        HStack {
+            Text(label)
+                .font(.system(size: 14))
+                .foregroundStyle(FinTheme.ink400)
+            TextField("1234", text: text)
+                .keyboardType(.numberPad)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(FinTheme.ink)
+                .multilineTextAlignment(.trailing)
+                .monospacedDigit()
+                .frame(maxWidth: 90)
+                .onChange(of: text.wrappedValue) { _, newValue in
+                    let digits = String(newValue.filter(\.isNumber).prefix(4))
+                    if digits != newValue { text.wrappedValue = digits }
+                }
+        }
+        .padding(.vertical, 12)
+    }
+
     private func labeledCard(_ label: String, @ViewBuilder content: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(label)
@@ -350,6 +391,13 @@ struct AccountEditorView: View {
             groupName = group.name
             sharedLimitText = AmountInput.string(group.sharedLimit)
         }
+
+        let identifiers = account.identifiers ?? []
+        let primaryKind: InstrumentKind = account.type == .creditCard
+            ? .creditCard
+            : .accountNumber
+        primaryLast4 = identifiers.first { $0.kind == primaryKind }?.last4 ?? ""
+        debitCardLast4 = identifiers.first { $0.kind == .debitCard }?.last4 ?? ""
     }
 
     private func save() {
@@ -380,7 +428,7 @@ struct AccountEditorView: View {
             }
         }
 
-        store.saveAccount(
+        let saved = store.saveAccount(
             account,
             name: name.trimmingCharacters(in: .whitespaces),
             type: type,
@@ -389,7 +437,36 @@ struct AccountEditorView: View {
             statementDay: statementDay,
             creditGroup: resolvedGroup
         )
+        if let saved { saveMessageDigits(for: saved) }
         FinHaptics.success()
         dismiss()
+    }
+
+    /// Replaces the typed identifiers for this account, leaving any that import
+    /// learned on its own untouched only when they still match what is typed.
+    private func saveMessageDigits(for account: Account) {
+        let primaryKind: InstrumentKind = type == .creditCard ? .creditCard : .accountNumber
+        let wanted: [(InstrumentKind, String)] = [
+            (primaryKind, primaryLast4),
+            // A credit card has no debit card drawing on it.
+            (.debitCard, type == .bank ? debitCardLast4 : ""),
+        ]
+
+        for (kind, digits) in wanted {
+            let existing = (account.identifiers ?? []).first { $0.kind == kind }
+            guard digits.count == 4 else {
+                // Cleared field: drop the mapping so it stops resolving.
+                if let existing { store.context.delete(existing) }
+                continue
+            }
+            if let existing {
+                existing.last4 = digits
+            } else {
+                store.context.insert(
+                    AccountIdentifier(last4: digits, kind: kind, account: account)
+                )
+            }
+        }
+        store.persist()
     }
 }

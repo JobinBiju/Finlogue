@@ -14,22 +14,11 @@ struct FinlogueApp: App {
     @StateObject private var store: TransactionStore
 
     init() {
-        let schema = Schema([
-            Transaction.self, Account.self, Category.self, Budget.self, RecurringRule.self,
-            Person.self, TransactionSplit.self, RecurringSplit.self, CreditGroup.self,
-        ])
-        let configuration = ModelConfiguration(
-            "Finlogue-v3",
-            schema: schema,
-            groupContainer: .identifier("group.dev.jobin.finlogue")
-        )
-        do {
-            let container = try ModelContainer(for: schema, configurations: [configuration])
-            self.container = container
-            _store = StateObject(wrappedValue: TransactionStore(container: container))
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
+        // Shared with the SMS-import App Intent, which runs headless in this
+        // same process — see AppModelContainer.
+        let container = AppModelContainer.shared
+        self.container = container
+        _store = StateObject(wrappedValue: TransactionStore(container: container))
         PhoneSyncEngine.shared.configure(container: container)
     }
 

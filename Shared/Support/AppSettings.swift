@@ -16,8 +16,16 @@ enum AppSettings {
     // One-time conversion of legacy single-person expense tags into splits.
     static let didMigratePersonToSplitsKey = "didMigratePersonToSplits-v3"
 
+    // SMS import: when enabled, high-trust senders with a fully resolved parse
+    // skip the review inbox. Off by default — see SMSImportService.
+    static let smsAutoConfirmKey = "smsAutoConfirmEnabled"
+
     static var currencyCode: String {
         UserDefaults.standard.string(forKey: currencyCodeKey) ?? defaultCurrencyCode
+    }
+
+    static var smsAutoConfirmEnabled: Bool {
+        UserDefaults.standard.bool(forKey: smsAutoConfirmKey)
     }
 
     /// Curated list for the Settings currency picker.

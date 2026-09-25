@@ -21,6 +21,11 @@ enum SettlementDirection: String, Identifiable {
 
 @MainActor
 final class TransactionStore: ObservableObject {
+    /// For App Intents, which run headless with no SwiftUI environment to read
+    /// the store from. Backed by `AppModelContainer.shared`, so it works through
+    /// the same `mainContext` as the instance the app's views use.
+    static let shared = TransactionStore(container: AppModelContainer.shared)
+
     let container: ModelContainer
 
     var context: ModelContext { container.mainContext }
@@ -33,16 +38,47 @@ final class TransactionStore: ObservableObject {
             symbol: "chart.line.uptrend.xyaxis", colorHex: "#0EA5E9"
         )
         migratePersonTagsToSplitsIfNeeded()
+        // Also drained on activation, but `.onChange(of: scenePhase)` never
+        // fires on a cold launch — the app is already active by then — so a
+        // message shared while the app was closed would sit unseen.
+        drainSharedInbox()
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-seedSampleData") {
             seedSampleData()
+        }
+        if ProcessInfo.processInfo.arguments.contains("-runSMSParserChecks") {
+            SMSParserChecks.run()
+        }
+        // Test hook: puts one parsed message in the review inbox so the Home
+        // banner and inbox rows can be inspected without a real SMS.
+        if ProcessInfo.processInfo.arguments.contains("-seedPendingImport") {
+            _ = SMSImportService.ingest(
+                text: "Spent Rs.639 On HDFC Bank Card 3429 At Ing*REDBUS INDIA PVT L On 2026-07-30:14:45:58.Not You? To Block+Reissue Call 18002586161/SMS BLOCK CC 3429 to 7308080808",
+                sender: "VM-HDFCBK-T",
+                store: self
+            )
         }
         #endif
     }
 
     func onAppBecameActive() {
+        drainSharedInbox()
         RecurringEngine.processDueRules(store: self)
         PhoneSyncEngine.shared.pushSnapshot()
+    }
+
+    /// Messages shared into the app land in an App Group file because the share
+    /// extension has no access to this store. Parsing happens here rather than
+    /// in the extension, so anything queued benefits from later parser fixes.
+    private func drainSharedInbox() {
+        for item in SharedInboxQueue.drain() {
+            _ = SMSImportService.ingest(
+                text: item.text,
+                sender: "",
+                store: self,
+                now: item.receivedAt
+            )
+        }
     }
 
     // MARK: Transactions
@@ -177,6 +213,9 @@ final class TransactionStore: ObservableObject {
 
     // MARK: Accounts
 
+    /// - Returns: the saved account, so callers can attach related records (such
+    ///   as SMS `AccountIdentifier`s) to a newly created one.
+    @discardableResult
     func saveAccount(
         _ account: Account?,
         name: String,
@@ -185,7 +224,7 @@ final class TransactionStore: ObservableObject {
         creditLimit: Double?,
         statementDay: Int? = nil,
         creditGroup: CreditGroup? = nil
-    ) {
+    ) -> Account? {
         let day = type == .creditCard ? statementDay : nil
         let group = type == .creditCard ? creditGroup : nil
         if let account {
@@ -196,16 +235,19 @@ final class TransactionStore: ObservableObject {
             account.statementDay = day
             account.creditGroup = group
             account.updatedAt = .now
-        } else {
-            let created = Account(
-                name: name, type: type,
-                openingBalance: openingBalance, creditLimit: creditLimit,
-                statementDay: day
-            )
-            created.creditGroup = group
-            context.insert(created)
+            persist()
+            return account
         }
+
+        let created = Account(
+            name: name, type: type,
+            openingBalance: openingBalance, creditLimit: creditLimit,
+            statementDay: day
+        )
+        created.creditGroup = group
+        context.insert(created)
         persist()
+        return created
     }
 
     func delete(_ account: Account) {

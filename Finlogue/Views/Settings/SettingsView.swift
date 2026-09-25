@@ -16,6 +16,7 @@ struct SettingsView: View {
     @Query(sort: \Category.sortOrder) private var categories: [Category]
     @Query(sort: \Person.name) private var people: [Person]
     @Query(sort: \RecurringRule.amount, order: .reverse) private var recurringRules: [RecurringRule]
+    @Query private var pendingImports: [PendingTransaction]
 
     @AppStorage(AppSettings.currencyCodeKey) private var currencyCode = AppSettings.defaultCurrencyCode
 
@@ -24,6 +25,7 @@ struct SettingsView: View {
     @State private var pushAccounts = Self.launchIntoAccounts
     @State private var pushCategories = Self.launchIntoCategories
     @State private var pushPeople = Self.launchIntoPeople
+    @State private var pushBankMessages = Self.launchIntoBankMessages
 
     // Backup / restore
     @State private var exportURL: URL?
@@ -55,6 +57,15 @@ struct SettingsView: View {
     private static var launchIntoCategories: Bool {
         #if DEBUG
         return ProcessInfo.processInfo.arguments.contains("-openCategories")
+        #else
+        return false
+        #endif
+    }
+
+    /// Test hook: `-openBankMessages` pushes the SMS import screen on launch.
+    private static var launchIntoBankMessages: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("-openBankMessages")
         #else
         return false
         #endif
@@ -95,6 +106,9 @@ struct SettingsView: View {
             }
             .navigationDestination(isPresented: $pushPeople) {
                 PeopleSettingsView()
+            }
+            .navigationDestination(isPresented: $pushBankMessages) {
+                SMSImportSettingsView()
             }
             .sheet(isPresented: $showAddRule) { RecurringRuleEditorView() }
             .sheet(item: $editingRule) { RecurringRuleEditorView(rule: $0) }
@@ -344,6 +358,16 @@ struct SettingsView: View {
                     title: "People",
                     symbol: "person.2",
                     count: people.count
+                )
+            }
+            .listRowBackground(FinTheme.paper)
+            NavigationLink {
+                SMSImportSettingsView()
+            } label: {
+                manageRow(
+                    title: "Bank Messages",
+                    symbol: "text.bubble",
+                    count: pendingImports.count
                 )
             }
             .listRowBackground(FinTheme.paper)

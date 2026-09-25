@@ -41,6 +41,12 @@ final class Account {
     @Relationship(deleteRule: .nullify, inverse: \RecurringRule.toAccount)
     var incomingRecurringTransfers: [RecurringRule]? = []
 
+    /// Last-4 digits that bank SMS messages use to refer to this account — the
+    /// account number plus any card numbers drawing on it. Cascade-deleted:
+    /// an identifier is meaningless without its account.
+    @Relationship(deleteRule: .cascade, inverse: \AccountIdentifier.account)
+    var identifiers: [AccountIdentifier]? = []
+
     init(
         id: UUID = UUID(),
         name: String,

@@ -16,6 +16,10 @@ struct FinWatchApp: App {
         let schema = Schema([
             Transaction.self, Account.self, Category.self, Budget.self, RecurringRule.self,
             Person.self, TransactionSplit.self, RecurringSplit.self, CreditGroup.self,
+            // Kept in step with the phone schema: `Account` declares a
+            // relationship to AccountIdentifier, so the model must be registered
+            // even though SMS import is phone-only.
+            AccountIdentifier.self, PendingTransaction.self, MerchantRule.self,
         ])
         let configuration = ModelConfiguration("Finlogue-v3", schema: schema)
         do {

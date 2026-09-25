@@ -13,6 +13,8 @@ struct HomeView: View {
     @Query(sort: \Transaction.date, order: .reverse) private var transactions: [Transaction]
     @Query(sort: \Account.createdAt) private var accounts: [Account]
     @Query private var recurringRules: [RecurringRule]
+    @Query(sort: \PendingTransaction.date, order: .reverse)
+    private var pendingImports: [PendingTransaction]
 
     @State private var searchText = Self.initialSearchText
 
@@ -41,10 +43,21 @@ struct HomeView: View {
     @State private var editingTransaction: Transaction?
     @State private var showAddTransaction = Self.launchIntoAddSheet
 
+    @State private var pushInbox = Self.launchIntoInbox
+
     /// Test hook: `-showAddTransaction` opens the new-transaction sheet on launch.
     private static var launchIntoAddSheet: Bool {
         #if DEBUG
         return ProcessInfo.processInfo.arguments.contains("-showAddTransaction")
+        #else
+        return false
+        #endif
+    }
+
+    /// Test hook: `-openInbox` pushes the SMS review inbox on launch.
+    private static var launchIntoInbox: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("-openInbox")
         #else
         return false
         #endif
@@ -127,6 +140,7 @@ struct HomeView: View {
             List {
                 headerSection
                 if !isSearching {
+                    if !pendingImports.isEmpty { inboxSection }
                     if !accounts.isEmpty { accountsSection }
                     if !upcoming.isEmpty { upcomingSection }
                 }
@@ -148,6 +162,9 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showFilter) {
                 TransactionFilterView(filter: $filter)
+            }
+            .navigationDestination(isPresented: $pushInbox) {
+                SMSInboxView()
             }
         }
     }
@@ -315,6 +332,46 @@ struct HomeView: View {
     }
 
     // MARK: Accounts carousel
+
+    /// Only shown when something is waiting — bank-message imports are invisible
+    /// otherwise, and a permanent row would be dead weight on most days.
+    private var inboxSection: some View {
+        Section {
+            NavigationLink {
+                SMSInboxView()
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "tray.full")
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(FinTheme.coral)
+                        .frame(width: 42, height: 42)
+                        .background(FinTheme.coral.opacity(0.14), in: Circle())
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(pendingImports.count == 1
+                             ? "1 transaction to review"
+                             : "\(pendingImports.count) transactions to review")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(FinTheme.ink)
+                        Text("From your bank messages")
+                            .font(.system(size: 12))
+                            .foregroundStyle(FinTheme.ink400)
+                    }
+
+                    Spacer()
+
+                    Text(CurrencyFormatter.string(
+                        pendingImports.reduce(0) { $0 + $1.amount }
+                    ))
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(FinTheme.ink600)
+                    .monospacedDigit()
+                }
+                .padding(.vertical, 6)
+            }
+            .listRowBackground(FinTheme.paper)
+        }
+    }
 
     private var accountsSection: some View {
         Section {
