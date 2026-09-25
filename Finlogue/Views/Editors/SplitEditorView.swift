@@ -172,13 +172,7 @@ struct SplitEditorView: View {
                             Text(CurrencyFormatter.symbol())
                                 .font(.system(size: 15, weight: .medium))
                                 .foregroundStyle(FinTheme.ink400)
-                            TextField("0", value: $draft.amount, format: .number)
-                                .keyboardType(.decimalPad)
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(FinTheme.ink)
-                                .multilineTextAlignment(.trailing)
-                                .frame(minWidth: 44)
-                                .fixedSize()
+                            SplitAmountField(amount: $draft.amount)
                         }
                         Button {
                             FinHaptics.tap()
@@ -240,5 +234,38 @@ struct SplitEditorView: View {
         withAnimation(.snappy(duration: 0.2)) {
             splits.append(SplitDraft(personID: person.id, amount: 0))
         }
+    }
+}
+
+/// String-backed amount field: a value-bound `TextField` with `format: .number`
+/// re-parses each keystroke, which silently drops a trailing decimal separator
+/// ("12." parses to 12 and redisplays as "12"), so the "." never appears. The
+/// text is the editing state here; the parsed value is pushed to the binding.
+private struct SplitAmountField: View {
+    @Binding var amount: Double
+    @State private var text: String
+
+    init(amount: Binding<Double>) {
+        _amount = amount
+        let value = amount.wrappedValue
+        _text = State(initialValue: value > 0 ? value.formatted(.number.grouping(.never)) : "")
+    }
+
+    var body: some View {
+        TextField("0", text: $text)
+            .keyboardType(.decimalPad)
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(FinTheme.ink)
+            .multilineTextAlignment(.trailing)
+            .frame(minWidth: 44)
+            .fixedSize()
+            .onChange(of: text) { _, newValue in
+                let groupSeparator = Locale.current.groupingSeparator ?? ","
+                let decimalSeparator = Locale.current.decimalSeparator ?? "."
+                let raw = newValue
+                    .replacingOccurrences(of: groupSeparator, with: "")
+                    .replacingOccurrences(of: decimalSeparator, with: ".")
+                amount = Double(raw) ?? 0
+            }
     }
 }
