@@ -14,7 +14,7 @@ struct SettingsView: View {
     @Query(sort: \Account.createdAt) private var accounts: [Account]
     @Query(sort: \Category.sortOrder) private var categories: [Category]
     @Query(sort: \Person.name) private var people: [Person]
-    @Query(sort: \RecurringRule.name) private var recurringRules: [RecurringRule]
+    @Query(sort: \RecurringRule.amount, order: .reverse) private var recurringRules: [RecurringRule]
 
     @AppStorage(AppSettings.currencyCodeKey) private var currencyCode = AppSettings.defaultCurrencyCode
 
@@ -263,8 +263,37 @@ struct SettingsView: View {
         .padding(.vertical, 4)
     }
 
+    /// Monthly-equivalent total of active outgoing rules: weekly ≈ 4.33×, yearly ÷ 12.
+    /// Uses `myShare` so split subscriptions (e.g. Netflix) only count your portion.
+    private var monthlyRecurringTotal: Double {
+        recurringRules
+            .filter { $0.isActive && $0.type != .income }
+            .reduce(0) { total, rule in
+                switch rule.frequency {
+                case .weekly: total + rule.myShare * 52 / 12
+                case .monthly: total + rule.myShare
+                case .yearly: total + rule.myShare / 12
+                }
+            }
+    }
+
     private var recurringSection: some View {
         Section {
+            if monthlyRecurringTotal > 0 {
+                HStack {
+                    Text("Fixed per month")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(FinTheme.ink)
+                    Spacer()
+                    Text(CurrencyFormatter.string(monthlyRecurringTotal))
+                        .font(.system(size: 15, weight: .heavy))
+                        .kerning(-0.3)
+                        .monospacedDigit()
+                        .foregroundStyle(FinTheme.coral)
+                }
+                .listRowBackground(FinTheme.paper)
+                .listRowSeparatorTint(FinTheme.lineSoft)
+            }
             ForEach(recurringRules) { rule in
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
