@@ -25,6 +25,9 @@ final class Category {
     @Relationship(deleteRule: .nullify, inverse: \Budget.category)
     var budgets: [Budget]? = []
 
+    @Relationship(deleteRule: .nullify, inverse: \Budget.categories)
+    var multiCategoryBudgets: [Budget]? = []
+
     @Relationship(deleteRule: .nullify, inverse: \RecurringRule.category)
     var recurringRules: [RecurringRule]? = []
 

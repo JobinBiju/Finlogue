@@ -36,6 +36,11 @@ enum InsightsService {
         in context: ModelContext, month: Date, calendar: Calendar = .current
     ) -> [Transaction] {
         guard let interval = calendar.dateInterval(of: .month, for: month) else { return [] }
+        return transactions(in: context, interval: interval)
+    }
+
+    /// Transactions inside an arbitrary interval (used for card billing periods).
+    static func transactions(in context: ModelContext, interval: DateInterval) -> [Transaction] {
         let start = interval.start
         let end = interval.end
         let descriptor = FetchDescriptor<Transaction>(
@@ -47,8 +52,18 @@ enum InsightsService {
     /// Expense totals per category for one month, largest first. Uses each
     /// transaction's own share, so split-out amounts are left out.
     static func categoryTotals(in context: ModelContext, month: Date) -> [CategoryTotal] {
-        let expenses = transactions(in: context, month: month)
+        guard let interval = Calendar.current.dateInterval(of: .month, for: month) else { return [] }
+        return categoryTotals(in: context, interval: interval)
+    }
+
+    /// Interval variant; `accountID` limits the breakdown to one account's
+    /// transactions (e.g. a single credit card's billing cycle).
+    static func categoryTotals(
+        in context: ModelContext, interval: DateInterval, accountID: UUID? = nil
+    ) -> [CategoryTotal] {
+        let expenses = transactions(in: context, interval: interval)
             .filter { $0.type == .expense && $0.myShare > 0 }
+            .filter { accountID == nil || $0.account?.id == accountID }
         var totals: [UUID: CategoryTotal] = [:]
         let uncategorizedID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
         for transaction in expenses {
@@ -85,8 +100,18 @@ enum InsightsService {
 
     /// Cumulative daily spend inside one month (for the trend line).
     static func dailySpend(in context: ModelContext, month: Date) -> [DailyTotal] {
+        guard let interval = Calendar.current.dateInterval(of: .month, for: month) else { return [] }
+        return dailySpend(in: context, interval: interval)
+    }
+
+    /// Interval variant of `dailySpend`, optionally scoped to one account.
+    static func dailySpend(
+        in context: ModelContext, interval: DateInterval, accountID: UUID? = nil
+    ) -> [DailyTotal] {
         let calendar = Calendar.current
-        let expenses = transactions(in: context, month: month).filter { $0.type == .expense }
+        let expenses = transactions(in: context, interval: interval)
+            .filter { $0.type == .expense }
+            .filter { accountID == nil || $0.account?.id == accountID }
         let grouped = Dictionary(grouping: expenses) { calendar.startOfDay(for: $0.date) }
         var running = 0.0
         return grouped.keys.sorted().map { day in
@@ -97,10 +122,19 @@ enum InsightsService {
 
     /// Spend so far this month against each budget.
     static func budgetProgress(in context: ModelContext, month: Date = .now) -> [(budget: Budget, spent: Double)] {
+        guard let interval = Calendar.current.dateInterval(of: .month, for: month) else { return [] }
+        return budgetProgress(in: context, interval: interval)
+    }
+
+    /// Interval variant (used for card billing cycles).
+    static func budgetProgress(
+        in context: ModelContext, interval: DateInterval
+    ) -> [(budget: Budget, spent: Double)] {
         let budgets = (try? context.fetch(FetchDescriptor<Budget>())) ?? []
-        let totals = categoryTotals(in: context, month: month)
+        let totals = categoryTotals(in: context, interval: interval)
         return budgets.map { budget in
-            let spent = totals.first { $0.id == budget.category?.id }?.total ?? 0
+            let categoryIDs = Set(budget.effectiveCategories.map(\.id))
+            let spent = totals.filter { categoryIDs.contains($0.id) }.reduce(0) { $0 + $1.total }
             return (budget, spent)
         }
         .sorted { ($0.spent / max($0.budget.limit, 1)) > ($1.spent / max($1.budget.limit, 1)) }

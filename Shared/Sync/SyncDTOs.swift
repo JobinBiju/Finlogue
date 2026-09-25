@@ -182,12 +182,15 @@ struct TransactionDTO: Codable, Identifiable {
 struct BudgetDTO: Codable, Identifiable {
     var id: UUID
     var categoryID: UUID?
+    /// Multi-category budgets; nil in payloads written before the feature.
+    var categoryIDs: [UUID]?
     var limit: Double
     var updatedAt: Date
 
     init(from budget: Budget) {
         id = budget.id
         categoryID = budget.category?.id
+        categoryIDs = budget.effectiveCategories.map(\.id)
         limit = budget.limit
         updatedAt = budget.updatedAt
     }

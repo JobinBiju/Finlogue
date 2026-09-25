@@ -294,13 +294,16 @@ final class TransactionStore: ObservableObject {
 
     // MARK: Budgets
 
-    func saveBudget(_ budget: Budget?, category: Category?, limit: Double) {
+    func saveBudget(_ budget: Budget?, categories: [Category], limit: Double) {
+        // The legacy single slot mirrors the first category so old watch
+        // snapshots and backups keep something sensible.
         if let budget {
-            budget.category = category
+            budget.categories = categories
+            budget.category = categories.first
             budget.limit = limit
             budget.updatedAt = .now
         } else {
-            context.insert(Budget(category: category, limit: limit))
+            context.insert(Budget(category: categories.first, categories: categories, limit: limit))
         }
         persist()
     }

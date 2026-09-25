@@ -18,21 +18,26 @@ struct BudgetEditorView: View {
     @Query(sort: \Category.sortOrder) private var categories: [Category]
     @Query private var budgets: [Budget]
 
-    @State private var selectedCategoryID: UUID?
+    @State private var selectedCategoryIDs: Set<UUID> = []
     @State private var limitText = ""
 
     private var expenseCategories: [Category] {
-        let budgetedIDs = Set(budgets.compactMap { $0.category?.id })
+        // A category can belong to only one budget; keep this budget's own
+        // categories selectable when editing.
+        let ownIDs = Set(budget?.effectiveCategories.map(\.id) ?? [])
+        let budgetedIDs = Set(
+            budgets.filter { $0.id != budget?.id }
+                .flatMap { $0.effectiveCategories.map(\.id) }
+        )
         return categories.filter { category in
             guard category.type == .expense else { return false }
-            // A category can hold only one budget; keep the current one selectable.
-            return !budgetedIDs.contains(category.id) || category.id == budget?.category?.id
+            return !budgetedIDs.contains(category.id) || ownIDs.contains(category.id)
         }
     }
 
     private var canSave: Bool {
         guard let limit = AmountInput.parse(limitText), limit > 0 else { return false }
-        return selectedCategoryID != nil
+        return !selectedCategoryIDs.isEmpty
     }
 
     var body: some View {
@@ -77,7 +82,7 @@ struct BudgetEditorView: View {
         .presentationDetents([.medium, .large])
         .onAppear {
             guard let budget else { return }
-            selectedCategoryID = budget.category?.id
+            selectedCategoryIDs = Set(budget.effectiveCategories.map(\.id))
             limitText = AmountInput.string(budget.limit)
         }
     }
@@ -114,38 +119,51 @@ struct BudgetEditorView: View {
 
     private var categoryCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Category")
+            Text("Categories")
                 .finSectionLabel()
                 .padding(.leading, 4)
-            HStack {
-                Text("Category")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(FinTheme.ink600)
-                Spacer()
-                Menu {
-                    ForEach(expenseCategories) { category in
-                        Button {
-                            selectedCategoryID = category.id
-                        } label: {
-                            Label(category.name, systemImage: category.symbol)
+            VStack(spacing: 0) {
+                ForEach(expenseCategories) { category in
+                    let isSelected = selectedCategoryIDs.contains(category.id)
+                    Button {
+                        FinHaptics.selection()
+                        if isSelected {
+                            selectedCategoryIDs.remove(category.id)
+                        } else {
+                            selectedCategoryIDs.insert(category.id)
                         }
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: category.symbol)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 26, height: 26)
+                                .background(
+                                    Color(hex: category.colorHex),
+                                    in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                )
+                            Text(category.name)
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundStyle(FinTheme.ink)
+                            Spacer()
+                            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                                .font(.system(size: 20, weight: .medium))
+                                .foregroundStyle(isSelected ? FinTheme.coral : FinTheme.ink400.opacity(0.4))
+                        }
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 18)
+                        .contentShape(Rectangle())
                     }
-                } label: {
-                    HStack(spacing: 6) {
-                        Text(categories.first { $0.id == selectedCategoryID }?.name ?? "Select")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(FinTheme.ink)
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(FinTheme.ink400)
+                    .buttonStyle(.plain)
+                    if category.id != expenseCategories.last?.id {
+                        Divider().overlay(FinTheme.lineSoft).padding(.leading, 54)
                     }
                 }
             }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 18)
+            .padding(.vertical, 6)
             .frame(maxWidth: .infinity)
             .finCard(radius: 16)
-            Text("The limit applies every month.")
+            Text("Pick one or more categories — their combined spending counts against this limit, every month.")
                 .font(.system(size: 12))
                 .foregroundStyle(FinTheme.ink400)
                 .padding(.leading, 4)
@@ -157,8 +175,8 @@ struct BudgetEditorView: View {
 
     private func save() {
         guard let limit = AmountInput.parse(limitText) else { return }
-        let category = categories.first { $0.id == selectedCategoryID }
-        store.saveBudget(budget, category: category, limit: limit)
+        let selected = categories.filter { selectedCategoryIDs.contains($0.id) }
+        store.saveBudget(budget, categories: selected, limit: limit)
         FinHaptics.success()
         dismiss()
     }

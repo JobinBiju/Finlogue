@@ -12,8 +12,22 @@ struct InsightsView: View {
 
     // Only used to trigger recomputation when data changes.
     @Query private var transactions: [Transaction]
+    @Query(sort: \Account.name) private var accounts: [Account]
 
     @State private var selectedMonth = Self.initialMonth
+
+    private enum PeriodMode: String, CaseIterable {
+        case monthly, billing
+        var label: String {
+            switch self {
+            case .monthly: "Calendar month"
+            case .billing: "Card cycle"
+            }
+        }
+    }
+
+    @State private var periodMode: PeriodMode = .monthly
+    @Namespace private var periodPillNamespace
 
     /// Test hook: `-insightsMonthOffset -N` opens N months back.
     private static var initialMonth: Date {
@@ -36,8 +50,57 @@ struct InsightsView: View {
         return calendar.compare(next, to: .now, toGranularity: .month) != .orderedDescending
     }
 
+    /// Credit cards that have a statement day set — the only ones a cycle can
+    /// be computed for.
+    private var billableCards: [Account] {
+        accounts.filter { $0.type == .creditCard && $0.statementDay != nil }
+    }
+
+    private var selectedCard: Account? {
+        billableCards.first
+    }
+
+    /// The billing cycle overlapping `selectedMonth`: statement day of that
+    /// month through the day before the next statement. Clamped for short
+    /// months. For the current month, the cycle rolls over only *after* the
+    /// statement day — with a statement on the 15th, through Sep 15 you're
+    /// still in the Aug 15 – Sep 15 cycle; Sep 15 – Oct 15 starts on the 16th.
+    private var billingInterval: DateInterval? {
+        guard let card = selectedCard, let statementDay = card.statementDay else { return nil }
+        func anchor(inMonthOf reference: Date) -> Date? {
+            guard let monthInterval = calendar.dateInterval(of: .month, for: reference),
+                  let dayCount = calendar.range(of: .day, in: .month, for: reference)?.count
+            else { return nil }
+            return calendar.date(
+                byAdding: .day, value: min(statementDay, dayCount) - 1, to: monthInterval.start
+            )
+        }
+        var cycleMonth = selectedMonth
+        if calendar.isDate(selectedMonth, equalTo: .now, toGranularity: .month),
+           let statementDate = anchor(inMonthOf: selectedMonth),
+           calendar.startOfDay(for: .now) <= statementDate,
+           let previousMonth = calendar.date(byAdding: .month, value: -1, to: selectedMonth) {
+            cycleMonth = previousMonth
+        }
+        guard let start = anchor(inMonthOf: cycleMonth),
+              let nextMonth = calendar.date(byAdding: .month, value: 1, to: cycleMonth),
+              let end = anchor(inMonthOf: nextMonth)
+        else { return nil }
+        return DateInterval(start: start, end: end)
+    }
+
+    private var isBillingMode: Bool { periodMode == .billing && billingInterval != nil }
+
+    /// Identity for chart crossfades — changes when the month, mode or card changes.
+    private var periodKey: String {
+        "\(selectedMonth.timeIntervalSinceReferenceDate)-\(periodMode.rawValue)-\(selectedCard?.id.uuidString ?? "")"
+    }
+
     private var categoryTotals: [CategoryTotal] {
-        InsightsService.categoryTotals(in: context, month: selectedMonth)
+        if isBillingMode, let interval = billingInterval {
+            return InsightsService.categoryTotals(in: context, interval: interval)
+        }
+        return InsightsService.categoryTotals(in: context, month: selectedMonth)
     }
 
     private var monthlySeries: [MonthlyTotal] {
@@ -45,7 +108,10 @@ struct InsightsView: View {
     }
 
     private var dailySpend: [DailyTotal] {
-        InsightsService.dailySpend(in: context, month: selectedMonth)
+        if isBillingMode, let interval = billingInterval {
+            return InsightsService.dailySpend(in: context, interval: interval)
+        }
+        return InsightsService.dailySpend(in: context, month: selectedMonth)
     }
 
     private var monthExpenseTotal: Double {
@@ -56,6 +122,9 @@ struct InsightsView: View {
         NavigationStack {
             List {
                 headerSection
+                if !billableCards.isEmpty {
+                    periodSection
+                }
                 if categoryTotals.isEmpty && dailySpend.isEmpty {
                     Section {
                         ContentUnavailableView(
@@ -138,6 +207,61 @@ struct InsightsView: View {
         }
     }
 
+    // MARK: Period switcher (calendar month vs card billing cycle)
+
+    private var periodSection: some View {
+        Section {
+            VStack(spacing: 12) {
+                HStack(spacing: 4) {
+                    ForEach(PeriodMode.allCases, id: \.self) { mode in
+                        let isSelected = periodMode == mode
+                        Button {
+                            FinHaptics.selection()
+                            withAnimation(.smooth(duration: 0.35)) {
+                                periodMode = mode
+                            }
+                        } label: {
+                            Text(mode.label)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(isSelected ? FinTheme.cream : FinTheme.ink600)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background {
+                                    if isSelected {
+                                        Capsule()
+                                            .fill(FinTheme.ink)
+                                            .matchedGeometryEffect(id: "periodPill", in: periodPillNamespace)
+                                    }
+                                }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(4)
+                .background(FinTheme.paperInset, in: Capsule())
+
+                if periodMode == .billing, let interval = billingInterval {
+                    Text(
+                        "\(interval.start.formatted(.dateTime.day().month(.abbreviated))) – \(interval.end.formatted(.dateTime.day().month(.abbreviated)))"
+                    )
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(FinTheme.ink400)
+                    .monospacedDigit()
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+            .padding(14)
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(FinTheme.paper)
+        } footer: {
+            if periodMode == .billing {
+                Text("All spending between statement dates.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(FinTheme.ink400)
+            }
+        }
+    }
+
     // MARK: Category donut
 
     private var categoryBreakdownSection: some View {
@@ -157,7 +281,7 @@ struct InsightsView: View {
                     .foregroundStyle(Color(hex: item.colorHex))
                 }
                 .frame(height: 190)
-                .animation(.smooth(duration: 0.5), value: selectedMonth)
+                .animation(.smooth(duration: 0.5), value: periodKey)
                 .chartBackground { _ in
                     VStack(spacing: 2) {
                         Text("Spent")
@@ -181,7 +305,7 @@ struct InsightsView: View {
                 // Rows keep their position across month changes; content
                 // crossfades in place and amounts roll numerically.
                 VStack(spacing: 12) {
-                    ForEach(Array(categoryTotals.prefix(6).enumerated()), id: \.offset) { _, item in
+                    ForEach(Array(categoryTotals.prefix(8).enumerated()), id: \.offset) { _, item in
                         HStack(spacing: 10) {
                             Image(systemName: item.symbol)
                                 .font(.system(size: 13, weight: .semibold))
@@ -214,7 +338,7 @@ struct InsightsView: View {
                         .transition(.opacity)
                     }
                 }
-                .animation(.smooth(duration: 0.5), value: selectedMonth)
+                .animation(.smooth(duration: 0.5), value: periodKey)
             }
             .padding(20)
             .listRowInsets(EdgeInsets())
@@ -266,10 +390,10 @@ struct InsightsView: View {
                         }
                     }
                     .frame(height: 150)
-                    .id(selectedMonth)
+                    .id(periodKey)
                     .transition(.opacity)
                 }
-                .animation(.easeInOut(duration: 0.4), value: selectedMonth)
+                .animation(.easeInOut(duration: 0.4), value: periodKey)
             }
             .padding(20)
             .listRowInsets(EdgeInsets())

@@ -13,18 +13,66 @@ struct BudgetsView: View {
     @Query private var budgets: [Budget]
     // Recompute progress when transactions change.
     @Query private var transactions: [Transaction]
+    @Query(sort: \Account.name) private var accounts: [Account]
 
     @State private var editingBudget: Budget?
     @State private var showAddBudget = false
 
+    private enum PeriodMode: String, CaseIterable {
+        case monthly, billing
+        var label: String {
+            switch self {
+            case .monthly: "Calendar month"
+            case .billing: "Card cycle"
+            }
+        }
+    }
+
+    @State private var periodMode: PeriodMode = .monthly
+    @Namespace private var periodPillNamespace
+
+    private var billableCards: [Account] {
+        accounts.filter { $0.type == .creditCard && $0.statementDay != nil }
+    }
+
+    /// The billing cycle containing today, anchored on the first billable
+    /// card's statement day (same anchor Insights uses). The cycle rolls over
+    /// only *after* the statement day — with a statement on the 15th, through
+    /// Sep 15 you're still in the Aug 15 – Sep 15 cycle; Sep 15 – Oct 15
+    /// starts on the 16th — hence the statement lookup as of yesterday.
+    private var billingInterval: DateInterval? {
+        let calendar = Calendar.current
+        guard let card = billableCards.first,
+              let statementDay = card.statementDay,
+              let yesterday = calendar.date(byAdding: .day, value: -1, to: .now),
+              let start = card.lastStatementDate(asOf: yesterday)
+        else { return nil }
+        guard let nextMonth = calendar.date(byAdding: .month, value: 1, to: start),
+              let monthInterval = calendar.dateInterval(of: .month, for: nextMonth),
+              let dayCount = calendar.range(of: .day, in: .month, for: nextMonth)?.count,
+              let end = calendar.date(
+                byAdding: .day, value: min(statementDay, dayCount) - 1, to: monthInterval.start
+              )
+        else { return nil }
+        return DateInterval(start: start, end: end)
+    }
+
+    private var isBillingMode: Bool { periodMode == .billing && billingInterval != nil }
+
     private var progress: [(budget: Budget, spent: Double)] {
-        InsightsService.budgetProgress(in: context)
+        if isBillingMode, let interval = billingInterval {
+            return InsightsService.budgetProgress(in: context, interval: interval)
+        }
+        return InsightsService.budgetProgress(in: context)
     }
 
     var body: some View {
         NavigationStack {
             List {
                 headerSection
+                if !billableCards.isEmpty {
+                    periodSection
+                }
                 if budgets.isEmpty {
                     Section {
                         ContentUnavailableView(
@@ -100,13 +148,59 @@ struct BudgetsView: View {
                     }
                     .buttonStyle(.plain)
                 }
-                Text("Progress is for \(Date.now.formatted(.dateTime.month(.wide))).")
+                Text(progressCaption)
                     .font(.system(size: 13))
                     .foregroundStyle(FinTheme.ink400)
+                    .contentTransition(.opacity)
+                    .animation(.smooth(duration: 0.35), value: periodMode)
             }
             .textCase(nil)
             .finHeaderAligned()
             .padding(.top, 8)
+        }
+    }
+
+    private var progressCaption: String {
+        if isBillingMode, let interval = billingInterval {
+            return "Progress is for \(interval.start.formatted(.dateTime.day().month(.abbreviated))) – \(interval.end.formatted(.dateTime.day().month(.abbreviated)))."
+        }
+        return "Progress is for \(Date.now.formatted(.dateTime.month(.wide)))."
+    }
+
+    // MARK: Period switcher (same pill as Insights)
+
+    private var periodSection: some View {
+        Section {
+            HStack(spacing: 4) {
+                ForEach(PeriodMode.allCases, id: \.self) { mode in
+                    let isSelected = periodMode == mode
+                    Button {
+                        FinHaptics.selection()
+                        withAnimation(.smooth(duration: 0.35)) {
+                            periodMode = mode
+                        }
+                    } label: {
+                        Text(mode.label)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(isSelected ? FinTheme.cream : FinTheme.ink600)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background {
+                                if isSelected {
+                                    Capsule()
+                                        .fill(FinTheme.ink)
+                                        .matchedGeometryEffect(id: "periodPill", in: periodPillNamespace)
+                                }
+                            }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(4)
+            .background(FinTheme.paperInset, in: Capsule())
+            .padding(14)
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(FinTheme.paper)
         }
     }
 }
@@ -114,6 +208,11 @@ struct BudgetsView: View {
 struct BudgetProgressRow: View {
     let budget: Budget
     let spent: Double
+
+    private var categoriesLabel: String {
+        let names = budget.effectiveCategories.map(\.name)
+        return names.isEmpty ? "Unknown category" : names.joined(separator: " + ")
+    }
 
     private var fraction: Double {
         budget.limit > 0 ? spent / budget.limit : 0
@@ -130,17 +229,37 @@ struct BudgetProgressRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
-                Image(systemName: budget.category?.symbol ?? "tag")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 30, height: 30)
-                    .background(
-                        Color(hex: budget.category?.colorHex ?? "#8C877B"),
-                        in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    )
-                Text(budget.category?.name ?? "Unknown category")
+                // Overlapping icon stack when the budget spans several categories.
+                HStack(spacing: -10) {
+                    ForEach(budget.effectiveCategories.prefix(3)) { category in
+                        Image(systemName: category.symbol)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 30, height: 30)
+                            .background(
+                                Color(hex: category.colorHex),
+                                in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .strokeBorder(FinTheme.paper, lineWidth: 1.5)
+                            )
+                    }
+                    if budget.effectiveCategories.isEmpty {
+                        Image(systemName: "tag")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 30, height: 30)
+                            .background(
+                                Color(hex: "#8C877B"),
+                                in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            )
+                    }
+                }
+                Text(categoriesLabel)
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(FinTheme.ink)
+                    .lineLimit(2)
                 Spacer()
                 Text("\(CurrencyFormatter.string(spent)) / \(CurrencyFormatter.string(budget.limit))")
                     .font(.system(size: 12, weight: .medium))

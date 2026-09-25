@@ -258,6 +258,7 @@ enum SnapshotBuilder {
             }()
             budget.limit = dto.limit
             budget.category = dto.categoryID.flatMap { categoriesByID[$0] }
+            budget.categories = (dto.categoryIDs ?? []).compactMap { categoriesByID[$0] }
             budget.updatedAt = dto.updatedAt
         }
 
