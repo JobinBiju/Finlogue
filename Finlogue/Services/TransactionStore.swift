@@ -185,6 +185,27 @@ final class TransactionStore: ObservableObject {
         persist()
     }
 
+    /// Edits a settlement in place; the person and settlement flag stay as they
+    /// were. The name follows the direction, as when it was recorded.
+    func updateSettlement(
+        _ transaction: Transaction,
+        direction: SettlementDirection,
+        amount: Double,
+        date: Date,
+        account: Account?,
+        note: String?
+    ) {
+        let personName = transaction.person?.name ?? ""
+        transaction.type = direction == .received ? .income : .expense
+        transaction.name = "\(direction == .received ? "Repayment" : "Paid") · \(personName)"
+        transaction.amount = amount
+        transaction.date = date
+        transaction.account = account
+        transaction.note = note
+        transaction.updatedAt = .now
+        persist()
+    }
+
     /// Logs an expense someone else paid on your behalf: it counts toward your
     /// insights and budgets like any spending, touches no account, and adds to
     /// what you owe that person.
@@ -208,6 +229,24 @@ final class TransactionStore: ObservableObject {
             paidByPerson: true
         )
         context.insert(transaction)
+        persist()
+    }
+
+    /// Edits an expense someone paid on your behalf. It still touches no account.
+    func updateBorrowedExpense(
+        _ transaction: Transaction,
+        name: String,
+        amount: Double,
+        category: Category?,
+        date: Date,
+        note: String?
+    ) {
+        transaction.name = name
+        transaction.amount = amount
+        transaction.category = category
+        transaction.date = date
+        transaction.note = note
+        transaction.updatedAt = .now
         persist()
     }
 

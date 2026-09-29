@@ -12,6 +12,8 @@ import SwiftData
 
 struct BorrowedExpenseEditorView: View {
     let person: Person
+    /// The expense being edited; nil logs a new one.
+    var expense: Transaction?
 
     @EnvironmentObject private var store: TransactionStore
     @Environment(\.dismiss) private var dismiss
@@ -101,7 +103,19 @@ struct BorrowedExpenseEditorView: View {
         }
         .background(FinTheme.canvas)
         .fontDesign(.rounded)
-        .onAppear { amountFocused = true }
+        .onAppear(perform: populate)
+    }
+
+    private func populate() {
+        guard let expense else {
+            amountFocused = true
+            return
+        }
+        amountText = expense.amount.formatted(.number.precision(.fractionLength(0...2)))
+        name = expense.name
+        selectedCategoryID = expense.category?.id
+        date = expense.date
+        note = expense.note ?? ""
     }
 
     private var selectedCategory: Category? {
@@ -179,15 +193,24 @@ struct BorrowedExpenseEditorView: View {
         guard let amount else { return }
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
-        store.recordBorrowedExpense(
-            person: person,
-            name: trimmedName.isEmpty ? (selectedCategory?.name ?? "Borrowed") : trimmedName,
-            amount: amount,
-            category: selectedCategory,
-            date: date,
-            note: trimmedNote.isEmpty ? nil : trimmedNote
-        )
+        let finalName = trimmedName.isEmpty ? (selectedCategory?.name ?? "Borrowed") : trimmedName
+        if let expense {
+            store.updateBorrowedExpense(
+                expense, name: finalName, amount: amount, category: selectedCategory,
+                date: date, note: trimmedNote.isEmpty ? nil : trimmedNote
+            )
+        } else {
+            store.recordBorrowedExpense(
+                person: person, name: finalName, amount: amount, category: selectedCategory,
+                date: date, note: trimmedNote.isEmpty ? nil : trimmedNote
+            )
+        }
         FinHaptics.success()
+        ToastCenter.shared.show(
+            expense == nil ? "Added" : "Updated",
+            detail: "\(person.name) paid \(CurrencyFormatter.string(amount))",
+            after: .milliseconds(350)
+        )
         dismiss()
     }
 }

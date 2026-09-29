@@ -13,6 +13,8 @@ import SwiftData
 
 struct SettlementEditorView: View {
     let person: Person
+    /// The settlement being edited; nil records a new one.
+    var settlement: Transaction?
 
     @EnvironmentObject private var store: TransactionStore
     @Environment(\.dismiss) private var dismiss
@@ -28,9 +30,14 @@ struct SettlementEditorView: View {
 
     @AppStorage(AppSettings.lastAccountIDKey) private var lastAccountID = ""
 
-    init(person: Person, direction: SettlementDirection = .received) {
+    init(
+        person: Person, direction: SettlementDirection = .received, settlement: Transaction? = nil
+    ) {
         self.person = person
-        _direction = State(initialValue: direction)
+        self.settlement = settlement
+        _direction = State(
+            initialValue: settlement.map { $0.type == .income ? .received : .paid } ?? direction
+        )
     }
 
     private var amount: Double? {
@@ -59,7 +66,7 @@ struct SettlementEditorView: View {
                     .font(.system(size: 16, weight: .medium))
                     .foregroundStyle(FinTheme.ink600)
                 Spacer()
-                Text("Settle up")
+                Text(settlement == nil ? "Settle up" : "Edit settlement")
                     .font(.system(size: 16, weight: .bold))
                     .foregroundStyle(FinTheme.ink)
                 Spacer()
@@ -186,6 +193,13 @@ struct SettlementEditorView: View {
     }
 
     private func populate() {
+        if let settlement {
+            amountText = settlement.amount.formatted(.number.precision(.fractionLength(0...2)))
+            date = settlement.date
+            note = settlement.note ?? ""
+            selectedAccountID = settlement.account?.id
+            return
+        }
         if let uuid = UUID(uuidString: lastAccountID),
            accounts.contains(where: { $0.id == uuid }) {
             selectedAccountID = uuid
@@ -199,12 +213,24 @@ struct SettlementEditorView: View {
         guard let amount else { return }
         let account = accounts.first { $0.id == selectedAccountID }
         let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
-        store.recordSettlement(
-            person: person, direction: direction, amount: amount, date: date,
-            account: account, note: trimmedNote.isEmpty ? nil : trimmedNote
-        )
+        if let settlement {
+            store.updateSettlement(
+                settlement, direction: direction, amount: amount, date: date,
+                account: account, note: trimmedNote.isEmpty ? nil : trimmedNote
+            )
+        } else {
+            store.recordSettlement(
+                person: person, direction: direction, amount: amount, date: date,
+                account: account, note: trimmedNote.isEmpty ? nil : trimmedNote
+            )
+        }
         if let account { lastAccountID = account.id.uuidString }
         FinHaptics.success()
+        ToastCenter.shared.show(
+            settlement == nil ? "Settled up" : "Updated",
+            detail: "\(person.name) \(CurrencyFormatter.string(amount))",
+            after: .milliseconds(350)
+        )
         dismiss()
     }
 }

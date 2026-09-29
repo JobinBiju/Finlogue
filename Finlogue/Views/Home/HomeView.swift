@@ -10,13 +10,23 @@ struct HomeView: View {
     @EnvironmentObject private var store: TransactionStore
     @Environment(\.modelContext) private var context
 
-    @Query(sort: \Transaction.date, order: .reverse) private var transactions: [Transaction]
+    @Query(sort: \Transaction.date, order: .reverse, animation: FinMotion.swap)
+    private var transactions: [Transaction]
     @Query(sort: \Account.createdAt) private var accounts: [Account]
     @Query private var recurringRules: [RecurringRule]
-    @Query(sort: \PendingTransaction.date, order: .reverse)
+    @Query(sort: \PendingTransaction.date, order: .reverse, animation: FinMotion.swap)
     private var pendingImports: [PendingTransaction]
 
+    /// Flips once, the first time Home is on screen, to play the entrance.
+    @State private var hasEntered = false
+
     @State private var searchText = Self.initialSearchText
+    @FocusState private var searchFocused: Bool
+    /// The search pill's on-screen frame, so a tap anywhere else can close the
+    /// keyboard. Held by reference: updating it while scrolling mustn't
+    /// re-render Home.
+    @State private var searchPill = FrameBox()
+    @State private var dismissTap = KeyboardDismissTap()
 
     /// Test hook: `-searchText <query>` pre-fills the home search field.
     private static var initialSearchText: String {
@@ -152,7 +162,18 @@ struct HomeView: View {
             .background(FinTheme.canvas)
             .contentMargins(.bottom, 88, for: .scrollContent)
             .contentMargins(.horizontal, 24, for: .scrollContent)
-            .animation(.smooth(duration: 0.4), value: visibleTransactions.map(\.id))
+            .animation(FinMotion.swap, value: searchText)
+            .animation(FinMotion.swap, value: filter)
+            .scrollDismissesKeyboard(.immediately)
+            // Tap anywhere outside the search pill to close the keyboard.
+            .onChange(of: searchFocused) { _, focused in
+                if focused {
+                    dismissTap.install { [searchPill] in searchPill.frame }
+                } else {
+                    dismissTap.remove()
+                }
+            }
+            .onFirstTabActivation { hasEntered = true }
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showAddTransaction) {
                 TransactionEditorView()
@@ -185,11 +206,12 @@ struct HomeView: View {
                               : "slider.horizontal.3")
                             .font(.system(size: 18, weight: .medium))
                             .foregroundStyle(filter.isActive ? FinTheme.coral : FinTheme.ink)
+                            .contentTransition(.symbolEffect(.replace))
                             .frame(width: 44, height: 44)
                             .background(FinTheme.paper, in: Circle())
                             .shadow(color: FinTheme.shadowTint.opacity(0.06), radius: 4, x: 0, y: 2)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.pressable)
 
                     Spacer()
 
@@ -215,7 +237,7 @@ struct HomeView: View {
                             .background(FinTheme.coral, in: Circle())
                             .shadow(color: FinTheme.coral.opacity(0.28), radius: 12, x: 0, y: 8)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.pressable)
                 }
 
                 HStack(spacing: 8) {
@@ -225,6 +247,8 @@ struct HomeView: View {
                     TextField("Search transactions", text: $searchText)
                         .font(.system(size: 15))
                         .foregroundStyle(FinTheme.ink)
+                        .focused($searchFocused)
+                        .submitLabel(.search)
                     if !searchText.isEmpty {
                         Button {
                             searchText = ""
@@ -233,25 +257,34 @@ struct HomeView: View {
                                 .foregroundStyle(FinTheme.ink400)
                         }
                         .buttonStyle(.plain)
+                        .blurSwapTransition()
                     }
                 }
                 .padding(.horizontal, 16)
                 .frame(height: 44)
                 .background(FinTheme.paper, in: Capsule())
                 .shadow(color: FinTheme.shadowTint.opacity(0.05), radius: 4, x: 0, y: 2)
+                .onGeometryChange(for: CGRect.self) { proxy in
+                    proxy.frame(in: .global)
+                } action: { frame in
+                    searchPill.frame = frame
+                }
+                .finEntrance(hasEntered, index: 0)
 
                 if !isSearching {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Balance")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(FinTheme.ink400)
-                    Text(CurrencyFormatter.string(netWorth))
+                    // Counts up from zero on first appearance, then counts
+                    // between values as transactions land.
+                    CountingCurrencyText(hasEntered ? netWorth : 0)
                         .font(.system(size: 40, weight: .heavy))
                         .kerning(-0.5)
                         .foregroundStyle(FinTheme.ink)
                         .monospacedDigit()
-                        .contentTransition(.numericText())
-                        .animation(.smooth(duration: 0.5), value: netWorth)
+                        .animation(FinMotion.count, value: netWorth)
+                        .animation(FinMotion.count.delay(FinMotion.stagger), value: hasEntered)
                     if let trend = monthTrendPercent {
                         HStack(spacing: 6) {
                             HStack(spacing: 3) {
@@ -273,7 +306,8 @@ struct HomeView: View {
                 .padding(20)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .finCard()
-                .transition(.opacity)
+                .finEntrance(hasEntered, index: 1)
+                .blurSwapTransition()
 
                 HStack(spacing: 14) {
                     summaryTile(
@@ -289,10 +323,11 @@ struct HomeView: View {
                 }
                 // Match the 14pt tile gap: the header stack's 20pt spacing minus 6.
                 .padding(.top, -6)
-                .transition(.opacity)
+                .finEntrance(hasEntered, index: 2)
+                .blurSwapTransition()
                 }
             }
-            .animation(.smooth(duration: 0.3), value: isSearching)
+            .animation(FinMotion.swap, value: isSearching)
             .textCase(nil)
             .finHeaderAligned()
             .padding(.top, 4)
@@ -320,8 +355,8 @@ struct HomeView: View {
                     .kerning(-0.4)
                     .foregroundStyle(FinTheme.ink)
                     .monospacedDigit()
-                    .contentTransition(.numericText())
-                    .animation(.smooth(duration: 0.5), value: amount)
+                    .contentTransition(.numericText(value: amount))
+                    .animation(FinMotion.reveal, value: amount)
                     .minimumScaleFactor(0.7)
                     .lineLimit(1)
             }
@@ -344,6 +379,7 @@ struct HomeView: View {
                     Image(systemName: "tray.full")
                         .font(.system(size: 17, weight: .medium))
                         .foregroundStyle(FinTheme.coral)
+                        .symbolEffect(.bounce, value: pendingImports.count)
                         .frame(width: 42, height: 42)
                         .background(FinTheme.coral.opacity(0.14), in: Circle())
 
@@ -368,6 +404,7 @@ struct HomeView: View {
                     .monospacedDigit()
                 }
                 .padding(.vertical, 6)
+                .finEntrance(hasEntered, index: 3)
             }
             .listRowBackground(FinTheme.paper)
         }
@@ -380,12 +417,20 @@ struct HomeView: View {
                 Text("Accounts")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(FinTheme.ink)
+                    .finEntrance(hasEntered, index: 3)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
                         // Banks first, then cards, then others.
                         ForEach(Array(accounts.grouped.flatMap(\.accounts).enumerated()),
                                 id: \.element.id) { index, account in
                             AccountCardView(account: account, paletteIndex: index)
+                                // Cards easing out of the viewport recede slightly.
+                                .scrollTransition(axis: .horizontal) { card, phase in
+                                    card
+                                        .scaleEffect(phase.isIdentity ? 1 : 0.94)
+                                        .opacity(phase.isIdentity ? 1 : 0.75)
+                                }
+                                .finEntrance(hasEntered, index: 4 + min(index, 4))
                         }
                     }
                     .scrollTargetLayout()
@@ -441,10 +486,11 @@ struct HomeView: View {
                                 .frame(height: 34)
                                 .background(FinTheme.coral, in: Capsule())
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.pressable)
                     }
                 }
                 .padding(.vertical, 4)
+                .finEntrance(hasEntered, index: 6)
                 .listRowBackground(FinTheme.paper)
                 .listRowSeparatorTint(FinTheme.lineSoft)
             }
@@ -455,6 +501,7 @@ struct HomeView: View {
                 .textCase(nil)
                 .finHeaderAligned()
                 .padding(.bottom, 4)
+                .finEntrance(hasEntered, index: 6)
         }
     }
 
@@ -480,6 +527,7 @@ struct HomeView: View {
                 Section {
                     ForEach(group.items) { transaction in
                         TransactionRowView(transaction: transaction)
+                            .finEntrance(hasEntered, index: 7)
                             .listRowBackground(FinTheme.paper)
                             .listRowSeparatorTint(FinTheme.lineSoft)
                             .contentShape(Rectangle())
@@ -501,6 +549,7 @@ struct HomeView: View {
                     }
                 } header: {
                     SectionHeader(sectionTitle(for: group.day))
+                        .finEntrance(hasEntered, index: 7)
                 }
             }
         }
@@ -511,4 +560,10 @@ struct HomeView: View {
         if Calendar.current.isDateInYesterday(day) { return "Yesterday" }
         return day.formatted(.dateTime.weekday(.wide).day().month(.abbreviated))
     }
+}
+
+/// A frame held by reference, for geometry that gestures read but the view's
+/// body never depends on.
+private final class FrameBox {
+    var frame: CGRect = .zero
 }

@@ -25,6 +25,8 @@ struct WatchQuickAddView: View {
     @State private var crownValue: Double = 0
     @State private var step: Step = Self.initialStep
     @State private var selectedCategory: Category?
+    /// Set on save: the check pops before the sheet closes.
+    @State private var saved = false
 
     /// Test hook: `-quickAddAccountStep` opens directly on the account step.
     private static var initialStep: Step {
@@ -61,11 +63,22 @@ struct WatchQuickAddView: View {
     var body: some View {
         Group {
             switch step {
-            case .amount: amountStep
-            case .category: categoryStep
-            case .account: accountStep
+            case .amount: amountStep.blurSwapTransition()
+            case .category: categoryStep.blurSwapTransition()
+            case .account: accountStep.blurSwapTransition()
             }
         }
+        .overlay {
+            if saved {
+                SavedCheck()
+                    .transition(BlurSwap(radius: 8, scale: 0.5).animation(FinMotion.grow))
+            }
+        }
+        .allowsHitTesting(!saved)
+    }
+
+    private func go(to next: Step) {
+        withAnimation(FinMotion.swap) { step = next }
     }
 
     // MARK: Step 1 — amount
@@ -78,7 +91,7 @@ struct WatchQuickAddView: View {
                 .minimumScaleFactor(0.5)
                 .lineLimit(1)
                 .monospacedDigit()
-                .contentTransition(.numericText())
+                .contentTransition(.numericText(value: amount))
                 .frame(maxWidth: .infinity)
                 .focusable()
                 .digitalCrownRotation(
@@ -89,7 +102,7 @@ struct WatchQuickAddView: View {
                     isHapticFeedbackEnabled: true
                 )
                 .onChange(of: crownValue) { _, newValue in
-                    withAnimation(.snappy) {
+                    withAnimation(FinMotion.select) {
                         amount = (newValue / 10).rounded() * 10
                     }
                 }
@@ -101,7 +114,7 @@ struct WatchQuickAddView: View {
                 ForEach(presets, id: \.self) { preset in
                     Button {
                         WKInterfaceDevice.current().play(.click)
-                        withAnimation(.snappy) {
+                        withAnimation(FinMotion.select) {
                             amount = preset
                             crownValue = preset
                         }
@@ -134,10 +147,12 @@ struct WatchQuickAddView: View {
                 Spacer()
                 Button {
                     WKInterfaceDevice.current().play(.click)
-                    step = .category
+                    go(to: .category)
                 } label: {
                     Image(systemName: "chevron.right")
                 }
+                // Double tap moves on once there's an amount.
+                .handGestureShortcut(.primaryAction)
                 .controlSize(.large)
                 .background(amount > 0 ? FinTheme.coral : Color.gray.opacity(0.4), in: Circle())
                 .disabled(amount <= 0)
@@ -153,7 +168,7 @@ struct WatchQuickAddView: View {
                 Button {
                     WKInterfaceDevice.current().play(.click)
                     selectedCategory = category
-                    step = .account
+                    go(to: .account)
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: category.symbol)
@@ -169,7 +184,7 @@ struct WatchQuickAddView: View {
             }
             Button {
                 selectedCategory = nil
-                step = .account
+                go(to: .account)
             } label: {
                 Label("Skip", systemImage: "arrow.right")
                     .font(.system(size: 14))
@@ -247,6 +262,25 @@ struct WatchQuickAddView: View {
         syncEngine.send(transaction: TransactionDTO(from: transaction))
         lastAccountID = account.id.uuidString
         WKInterfaceDevice.current().play(.success)
-        dismiss()
+        withAnimation(FinMotion.grow) { saved = true }
+        Task {
+            try? await Task.sleep(for: .milliseconds(700))
+            dismiss()
+        }
+    }
+}
+
+/// Coral disc whose check pops once it lands.
+private struct SavedCheck: View {
+    var body: some View {
+        Image(systemName: "checkmark")
+            .font(.system(size: 30, weight: .heavy))
+            .foregroundStyle(.white)
+            .popOnAppear(after: 0.1)
+            .frame(width: 76, height: 76)
+            .background(FinTheme.coral, in: Circle())
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(.black.opacity(0.6))
+            .accessibilityLabel("Saved")
     }
 }

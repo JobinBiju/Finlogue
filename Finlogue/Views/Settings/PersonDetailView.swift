@@ -19,6 +19,22 @@ struct PersonDetailView: View {
     @State private var showSettlement = false
     @State private var showBorrowed = false
     @State private var showEdit = false
+    @State private var editing: EditTarget?
+
+    /// What an activity row opens. Keyed on the transaction, not the ledger
+    /// entry: saving a shared bill rebuilds its splits, and a sheet keyed on a
+    /// (now deleted) split would read a dead model while dismissing.
+    private enum EditTarget: Identifiable {
+        case sharedBill(Transaction)
+        case settlement(Transaction)
+        case borrowed(Transaction)
+
+        var id: UUID {
+            switch self {
+            case .sharedBill(let t), .settlement(let t), .borrowed(let t): t.id
+            }
+        }
+    }
 
     private enum LedgerEntry: Identifiable {
         case share(TransactionSplit)
@@ -59,6 +75,16 @@ struct PersonDetailView: View {
                 Section {
                     ForEach(ledger) { entry in
                         ledgerRow(entry)
+                            .contentShape(Rectangle())
+                            .onTapGesture { edit(entry) }
+                            .swipeActions(edge: .trailing) {
+                                Button {
+                                    edit(entry)
+                                } label: {
+                                    Label("Edit", systemImage: "pencil")
+                                }
+                                .tint(.orange)
+                            }
                     }
                 } header: {
                     SectionHeader("Activity")
@@ -84,6 +110,37 @@ struct PersonDetailView: View {
         }
         .sheet(isPresented: $showEdit) {
             PersonEditorView(person: person)
+        }
+        .sheet(item: $editing) { target in
+            editor(for: target)
+        }
+    }
+
+    // MARK: Editing activity
+
+    /// Each kind of entry opens the editor it was made with: a share edits the
+    /// whole shared bill (splits included), settlements and "they paid for me"
+    /// expenses reopen their own sheets.
+    private func edit(_ entry: LedgerEntry) {
+        let target: EditTarget? = switch entry {
+        case .share(let split): split.transaction.map(EditTarget.sharedBill)
+        case .settlement(let transaction): .settlement(transaction)
+        case .borrowed(let transaction): .borrowed(transaction)
+        }
+        guard let target else { return }
+        FinHaptics.tap()
+        editing = target
+    }
+
+    @ViewBuilder
+    private func editor(for target: EditTarget) -> some View {
+        switch target {
+        case .sharedBill(let transaction):
+            TransactionEditorView(transaction: transaction)
+        case .settlement(let transaction):
+            SettlementEditorView(person: person, settlement: transaction)
+        case .borrowed(let transaction):
+            BorrowedExpenseEditorView(person: person, expense: transaction)
         }
     }
 
@@ -151,11 +208,6 @@ struct PersonDetailView: View {
                         .kerning(-0.5)
                         .foregroundStyle(balanceColor)
                         .monospacedDigit()
-                    if person.owed > 0 {
-                        Text("\(CurrencyFormatter.string(person.repaid)) of \(CurrencyFormatter.string(person.owed)) repaid")
-                            .font(.system(size: 12))
-                            .foregroundStyle(FinTheme.ink400)
-                    }
                 }
 
                 VStack(spacing: 10) {

@@ -107,7 +107,7 @@ struct PeopleSettingsView: View {
                         .background(FinTheme.coral, in: Circle())
                         .shadow(color: FinTheme.coral.opacity(0.28), radius: 12, x: 0, y: 8)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.pressable)
             }
             .textCase(nil)
             .finHeaderAligned()

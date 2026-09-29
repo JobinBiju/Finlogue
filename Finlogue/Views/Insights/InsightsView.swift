@@ -27,7 +27,16 @@ struct InsightsView: View {
     }
 
     @State private var periodMode: PeriodMode = .monthly
-    @Namespace private var periodPillNamespace
+
+    /// 0 → 1 the first time Insights is on screen: the donut sweeps round and
+    /// the total counts up with it. Switching month or period afterwards uses
+    /// the plain crossfades and rolling digits below, not this entrance.
+    @State private var sweep: Double = 0
+    /// Set once the entrance count-up has landed; the total then rolls its
+    /// digits on changes instead of counting.
+    @State private var hasCounted = false
+    /// The trend line draws itself once; later periods crossfade in drawn.
+    @State private var trendDrawn = false
 
     /// Test hook: `-insightsMonthOffset -N` opens N months back.
     private static var initialMonth: Date {
@@ -148,6 +157,13 @@ struct InsightsView: View {
             .contentMargins(.bottom, 88, for: .scrollContent)
             .contentMargins(.horizontal, 24, for: .scrollContent)
             .toolbar(.hidden, for: .navigationBar)
+            .onFirstTabActivation {
+                withAnimation(FinMotion.reveal) { sweep = 1 }
+                Task {
+                    try? await Task.sleep(for: .seconds(1))
+                    hasCounted = true
+                }
+            }
         }
     }
 
@@ -212,31 +228,27 @@ struct InsightsView: View {
     private var periodSection: some View {
         Section {
             VStack(spacing: 12) {
-                HStack(spacing: 4) {
-                    ForEach(PeriodMode.allCases, id: \.self) { mode in
-                        let isSelected = periodMode == mode
-                        Button {
-                            FinHaptics.selection()
-                            withAnimation(.smooth(duration: 0.35)) {
-                                periodMode = mode
-                            }
-                        } label: {
-                            Text(mode.label)
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(isSelected ? FinTheme.cream : FinTheme.ink600)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 8)
-                                .background {
-                                    if isSelected {
-                                        Capsule()
-                                            .fill(FinTheme.ink)
-                                            .matchedGeometryEffect(id: "periodPill", in: periodPillNamespace)
-                                    }
-                                }
+                LiquidSegmentedControl(
+                    items: PeriodMode.allCases,
+                    selection: periodMode,
+                    spacing: 4,
+                    onSelect: { mode in
+                        FinHaptics.selection()
+                        withAnimation(.smooth(duration: 0.35)) {
+                            periodMode = mode
                         }
-                        .buttonStyle(.plain)
+                    },
+                    segment: { mode, _, onPill in
+                        Text(mode.label)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(onPill ? FinTheme.cream : FinTheme.ink600)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                    },
+                    pill: { shape in
+                        shape.fill(FinTheme.ink)
                     }
-                }
+                )
                 .padding(4)
                 .background(FinTheme.paperInset, in: Capsule())
 
@@ -271,14 +283,24 @@ struct InsightsView: View {
                     .finSectionLabel()
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                Chart(categoryTotals) { item in
+                Chart {
+                    ForEach(categoryTotals) { item in
+                        SectorMark(
+                            angle: .value("Amount", item.total * sweep),
+                            innerRadius: .ratio(0.64),
+                            angularInset: 1.5
+                        )
+                        .cornerRadius(4)
+                        .foregroundStyle(Color(hex: item.colorHex))
+                    }
+                    // Invisible remainder: while `sweep` < 1 it holds the
+                    // unswept part of the ring, so the sectors grow clockwise
+                    // instead of just rescaling.
                     SectorMark(
-                        angle: .value("Amount", item.total),
-                        innerRadius: .ratio(0.64),
-                        angularInset: 1.5
+                        angle: .value("Amount", monthExpenseTotal * (1 - sweep)),
+                        innerRadius: .ratio(0.64)
                     )
-                    .cornerRadius(4)
-                    .foregroundStyle(Color(hex: item.colorHex))
+                    .foregroundStyle(Color.clear)
                 }
                 .frame(height: 190)
                 .animation(.smooth(duration: 0.5), value: periodKey)
@@ -287,15 +309,23 @@ struct InsightsView: View {
                         Text("Spent")
                             .font(.system(size: 12, weight: .medium))
                             .foregroundStyle(FinTheme.ink400)
-                        Text(CurrencyFormatter.string(monthExpenseTotal))
-                            .font(.system(size: 24, weight: .heavy))
-                            .kerning(-0.5)
-                            .foregroundStyle(FinTheme.ink)
-                            .monospacedDigit()
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.5)
-                            .contentTransition(.numericText())
-                            .animation(.smooth(duration: 0.5), value: monthExpenseTotal)
+                        Group {
+                            if hasCounted {
+                                Text(CurrencyFormatter.string(monthExpenseTotal))
+                                    .contentTransition(.numericText())
+                                    .animation(.smooth(duration: 0.5), value: monthExpenseTotal)
+                            } else {
+                                CountingCurrencyText(monthExpenseTotal * sweep)
+                                    .animation(FinMotion.count, value: monthExpenseTotal)
+                                    .animation(FinMotion.count, value: sweep)
+                            }
+                        }
+                        .font(.system(size: 24, weight: .heavy))
+                        .kerning(-0.5)
+                        .foregroundStyle(FinTheme.ink)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
                     }
                     // Keep the label inside the donut hole (0.64 inner ratio
                     // of the 190pt chart, minus breathing room).
@@ -305,7 +335,7 @@ struct InsightsView: View {
                 // Rows keep their position across month changes; content
                 // crossfades in place and amounts roll numerically.
                 VStack(spacing: 12) {
-                    ForEach(Array(categoryTotals.prefix(8).enumerated()), id: \.offset) { _, item in
+                    ForEach(Array(categoryTotals.prefix(8).enumerated()), id: \.offset) { index, item in
                         HStack(spacing: 10) {
                             Image(systemName: item.symbol)
                                 .font(.system(size: 13, weight: .semibold))
@@ -335,6 +365,7 @@ struct InsightsView: View {
                                 .frame(width: 36, alignment: .trailing)
                                 .contentTransition(.numericText())
                         }
+                        .finEntrance(sweep > 0, index: 2 + min(index, 6))
                         .transition(.opacity)
                     }
                 }
@@ -356,42 +387,10 @@ struct InsightsView: View {
                 // Crossfade between months — a fresh identity per month avoids
                 // ugly mark-morphing when the x-domain changes.
                 ZStack {
-                    Chart(dailySpend) { item in
-                        AreaMark(
-                            x: .value("Day", item.day),
-                            y: .value("Cumulative", item.expense)
-                        )
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [FinTheme.coral.opacity(0.32), FinTheme.coral.opacity(0.02)],
-                                startPoint: .top, endPoint: .bottom
-                            )
-                        )
-                        LineMark(
-                            x: .value("Day", item.day),
-                            y: .value("Cumulative", item.expense)
-                        )
-                        .foregroundStyle(FinTheme.coral)
-                        .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                    }
-                    .chartXAxis {
-                        AxisMarks { _ in
-                            AxisValueLabel()
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(FinTheme.ink400)
-                        }
-                    }
-                    .chartYAxis {
-                        AxisMarks { _ in
-                            AxisGridLine().foregroundStyle(FinTheme.lineSoft)
-                            AxisValueLabel()
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(FinTheme.ink400)
-                        }
-                    }
-                    .frame(height: 150)
-                    .id(periodKey)
-                    .transition(.opacity)
+                    SpendingTrendChart(data: dailySpend, hasDrawn: $trendDrawn)
+                        .frame(height: 150)
+                        .id(periodKey)
+                        .transition(.opacity)
                 }
                 .animation(.easeInOut(duration: 0.4), value: periodKey)
             }
@@ -444,6 +443,14 @@ struct InsightsView: View {
                         }
                     }
                     .chartLegend(.hidden)
+                    // Bars rise out of the baseline on first appearance.
+                    .chartPlotStyle { plot in
+                        plot.mask(alignment: .bottom) {
+                            Rectangle()
+                                .padding(.top, -40)
+                                .scaleEffect(y: sweep, anchor: .bottom)
+                        }
+                    }
                     .frame(height: 160)
                     .id(selectedMonth)
                     .transition(.opacity)
@@ -471,5 +478,120 @@ struct InsightsView: View {
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(FinTheme.ink600)
         }
+    }
+}
+
+// MARK: - Spending trend
+
+/// Cumulative spend line that draws itself left to right the first time it's
+/// on screen, with a scrub bubble that follows the finger.
+private struct SpendingTrendChart: View {
+    let data: [DailyTotal]
+    /// Shared across the per-period identities, so only the first one draws in.
+    @Binding var hasDrawn: Bool
+
+    @State private var progress: CGFloat
+    @State private var scrubDate: Date?
+
+    init(data: [DailyTotal], hasDrawn: Binding<Bool>) {
+        self.data = data
+        _hasDrawn = hasDrawn
+        _progress = State(initialValue: hasDrawn.wrappedValue ? 1 : 0)
+    }
+
+    /// The data point nearest the finger.
+    private var scrubbed: DailyTotal? {
+        guard let scrubDate else { return nil }
+        return data.min {
+            abs($0.day.timeIntervalSince(scrubDate)) < abs($1.day.timeIntervalSince(scrubDate))
+        }
+    }
+
+    var body: some View {
+        Chart {
+            ForEach(data) { item in
+                AreaMark(
+                    x: .value("Day", item.day),
+                    y: .value("Cumulative", item.expense)
+                )
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [FinTheme.coral.opacity(0.32), FinTheme.coral.opacity(0.02)],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                )
+                LineMark(
+                    x: .value("Day", item.day),
+                    y: .value("Cumulative", item.expense)
+                )
+                .foregroundStyle(FinTheme.coral)
+                .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
+            }
+            if let scrubbed {
+                RuleMark(x: .value("Day", scrubbed.day))
+                    .foregroundStyle(FinTheme.ink400.opacity(0.6))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                    .annotation(
+                        position: .top, spacing: 4,
+                        overflowResolution: .init(x: .fit(to: .plot), y: .disabled)
+                    ) {
+                        scrubBubble(for: scrubbed)
+                    }
+                PointMark(
+                    x: .value("Day", scrubbed.day),
+                    y: .value("Cumulative", scrubbed.expense)
+                )
+                .symbolSize(70)
+                .foregroundStyle(FinTheme.coral)
+            }
+        }
+        .chartXSelection(value: $scrubDate)
+        .chartXAxis {
+            AxisMarks { _ in
+                AxisValueLabel()
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(FinTheme.ink400)
+            }
+        }
+        .chartYAxis {
+            AxisMarks { _ in
+                AxisGridLine().foregroundStyle(FinTheme.lineSoft)
+                AxisValueLabel()
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(FinTheme.ink400)
+            }
+        }
+        // Draw-on: a mask sweeping left to right over the plot. It overhangs
+        // vertically so the scrub bubble above the plot isn't clipped.
+        .chartPlotStyle { plot in
+            plot.mask(alignment: .leading) {
+                Rectangle()
+                    .padding(.vertical, -60)
+                    .scaleEffect(x: progress, anchor: .leading)
+            }
+        }
+        .sensoryFeedback(.selection, trigger: scrubbed?.day)
+        .onFirstTabActivation(after: .milliseconds(160)) {
+            guard progress == 0 else { return }
+            hasDrawn = true
+            withAnimation(FinMotion.reveal) { progress = 1 }
+        }
+    }
+
+    private func scrubBubble(for point: DailyTotal) -> some View {
+        VStack(spacing: 1) {
+            Text(CurrencyFormatter.string(point.expense))
+                .font(.system(size: 13, weight: .bold))
+                .monospacedDigit()
+                .contentTransition(.numericText(value: point.expense))
+            Text("by \(point.day.formatted(.dateTime.day().month(.abbreviated)))")
+                .font(.system(size: 10, weight: .medium))
+                .opacity(0.7)
+        }
+        .foregroundStyle(FinTheme.cream)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(FinTheme.ink, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .animation(FinMotion.press, value: point.day)
     }
 }

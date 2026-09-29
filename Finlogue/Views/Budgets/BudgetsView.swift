@@ -29,7 +29,9 @@ struct BudgetsView: View {
     }
 
     @State private var periodMode: PeriodMode = .monthly
-    @Namespace private var periodPillNamespace
+
+    /// Flips the first time Budgets is on screen; bars fill from empty.
+    @State private var revealed = false
 
     private var billableCards: [Account] {
         accounts.filter { $0.type == .creditCard && $0.statementDay != nil }
@@ -85,8 +87,11 @@ struct BudgetsView: View {
                     .padding(.vertical, 56)
                 } else {
                     Section {
-                        ForEach(progress, id: \.budget.id) { entry in
-                            BudgetProgressRow(budget: entry.budget, spent: entry.spent)
+                        ForEach(Array(progress.enumerated()), id: \.element.budget.id) { index, entry in
+                            BudgetProgressRow(
+                                budget: entry.budget, spent: entry.spent,
+                                revealed: revealed, index: index
+                            )
                                 .listRowBackground(FinTheme.paper)
                                 .listRowSeparatorTint(FinTheme.lineSoft)
                                 .contentShape(Rectangle())
@@ -116,6 +121,7 @@ struct BudgetsView: View {
             .contentMargins(.bottom, 88, for: .scrollContent)
             .contentMargins(.horizontal, 24, for: .scrollContent)
             .toolbar(.hidden, for: .navigationBar)
+            .onFirstTabActivation { revealed = true }
             .sheet(isPresented: $showAddBudget) {
                 BudgetEditorView()
             }
@@ -146,7 +152,7 @@ struct BudgetsView: View {
                             .background(FinTheme.coral, in: Circle())
                             .shadow(color: FinTheme.coral.opacity(0.28), radius: 12, x: 0, y: 8)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.pressable)
                 }
                 Text(progressCaption)
                     .font(.system(size: 13))
@@ -171,31 +177,27 @@ struct BudgetsView: View {
 
     private var periodSection: some View {
         Section {
-            HStack(spacing: 4) {
-                ForEach(PeriodMode.allCases, id: \.self) { mode in
-                    let isSelected = periodMode == mode
-                    Button {
-                        FinHaptics.selection()
-                        withAnimation(.smooth(duration: 0.35)) {
-                            periodMode = mode
-                        }
-                    } label: {
-                        Text(mode.label)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(isSelected ? FinTheme.cream : FinTheme.ink600)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
-                            .background {
-                                if isSelected {
-                                    Capsule()
-                                        .fill(FinTheme.ink)
-                                        .matchedGeometryEffect(id: "periodPill", in: periodPillNamespace)
-                                }
-                            }
+            LiquidSegmentedControl(
+                items: PeriodMode.allCases,
+                selection: periodMode,
+                spacing: 4,
+                onSelect: { mode in
+                    FinHaptics.selection()
+                    withAnimation(FinMotion.select) {
+                        periodMode = mode
                     }
-                    .buttonStyle(.plain)
+                },
+                segment: { mode, _, onPill in
+                    Text(mode.label)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(onPill ? FinTheme.cream : FinTheme.ink600)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                },
+                pill: { shape in
+                    shape.fill(FinTheme.ink)
                 }
-            }
+            )
             .padding(4)
             .background(FinTheme.paperInset, in: Capsule())
             .padding(14)
@@ -208,6 +210,10 @@ struct BudgetsView: View {
 struct BudgetProgressRow: View {
     let budget: Budget
     let spent: Double
+    /// False until the row should fill; the bar then fills from empty.
+    var revealed = true
+    /// Position in the list, for the staggered fill.
+    var index = 0
 
     private var categoriesLabel: String {
         let names = budget.effectiveCategories.map(\.name)
@@ -219,6 +225,8 @@ struct BudgetProgressRow: View {
     }
 
     private var isOver: Bool { fraction > 1 }
+
+    private var shownFraction: Double { revealed ? fraction : 0 }
 
     private var fillColor: Color {
         if isOver { return FinTheme.red }
@@ -265,6 +273,8 @@ struct BudgetProgressRow: View {
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(FinTheme.ink400)
                     .monospacedDigit()
+                    .contentTransition(.numericText(value: spent))
+                    .animation(FinMotion.reveal, value: spent)
             }
             Capsule()
                 .fill(FinTheme.paperInset)
@@ -273,18 +283,27 @@ struct BudgetProgressRow: View {
                     GeometryReader { proxy in
                         Capsule()
                             .fill(fillColor)
-                            .frame(width: max(proxy.size.width * min(fraction, 1), fraction > 0 ? 8 : 0))
+                            .frame(
+                                width: max(
+                                    proxy.size.width * min(shownFraction, 1),
+                                    shownFraction > 0 ? 8 : 0
+                                )
+                            )
                     }
                 }
-                .animation(.smooth(duration: 0.6), value: fraction)
+                .animation(FinMotion.reveal, value: fraction)
+                .animation(
+                    FinMotion.reveal.delay(Double(min(index, 8)) * FinMotion.stagger * 1.5),
+                    value: revealed
+                )
             if isOver {
                 Text("Over by \(CurrencyFormatter.string(spent - budget.limit))")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(FinTheme.red)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    .blurSwapTransition()
             }
         }
         .padding(.vertical, 8)
-        .animation(.smooth(duration: 0.4), value: isOver)
+        .animation(FinMotion.swap, value: isOver)
     }
 }

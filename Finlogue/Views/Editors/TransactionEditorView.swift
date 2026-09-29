@@ -189,6 +189,7 @@ struct TransactionEditorView: View {
                     typeSegments
                     if type != .transfer {
                         categoryChips
+                            .blurSwapTransition()
                     }
                     detailsCard
                 }
@@ -224,30 +225,28 @@ struct TransactionEditorView: View {
     // MARK: Type segments (pill)
 
     private var typeSegments: some View {
-        HStack(spacing: 0) {
-            ForEach(TransactionType.allCases) { candidate in
-                Button {
-                    FinHaptics.selection()
-                    withAnimation(.snappy(duration: 0.25)) {
-                        type = candidate
-                    }
-                } label: {
-                    Text(candidate.label)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(type == candidate ? .white : FinTheme.ink400)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 38)
-                        .background {
-                            if type == candidate {
-                                Capsule()
-                                    .fill(FinTheme.coral)
-                                    .shadow(color: FinTheme.coral.opacity(0.28), radius: 8, x: 0, y: 5)
-                            }
-                        }
+        LiquidSegmentedControl(
+            items: TransactionType.allCases,
+            selection: type,
+            onSelect: { candidate in
+                FinHaptics.selection()
+                withAnimation(FinMotion.select) {
+                    type = candidate
                 }
-                .buttonStyle(.plain)
+            },
+            segment: { candidate, _, onPill in
+                Text(candidate.label)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(onPill ? .white : FinTheme.ink400)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 38)
+            },
+            pill: { shape in
+                shape
+                    .fill(FinTheme.coral)
+                    .shadow(color: FinTheme.coral.opacity(0.28), radius: 8, x: 0, y: 5)
             }
-        }
+        )
         .padding(3)
         .background(FinTheme.paper, in: Capsule())
     }
@@ -304,13 +303,16 @@ struct TransactionEditorView: View {
                                     .padding(.vertical, 8)
                                     .background(FinTheme.paperInset, in: Capsule())
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(.pressable)
+                            .transition(BlurSwap())
                         }
                     }
                 }
                 .scrollClipDisabled()
+                .blurSwapTransition()
             }
         }
+        .animation(FinMotion.swap, value: nameSuggestions.map(\.id))
     }
 
     // MARK: Category chips
@@ -325,7 +327,7 @@ struct TransactionEditorView: View {
                     let isSelected = selectedCategoryID == category.id
                     Button {
                         FinHaptics.selection()
-                        withAnimation(.snappy(duration: 0.2)) {
+                        withAnimation(FinMotion.select) {
                             selectedCategoryID = isSelected ? nil : category.id
                         }
                         if name.isEmpty { name = category.name }
@@ -345,7 +347,7 @@ struct TransactionEditorView: View {
                         )
                         .shadow(color: FinTheme.shadowTint.opacity(0.05), radius: 4, x: 0, y: 2)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.pressable)
                 }
             }
         }
@@ -553,6 +555,16 @@ struct TransactionEditorView: View {
             lastAccountID = account.id.uuidString
         }
         FinHaptics.success()
+        let signedAmount: String = switch type {
+        case .income: "+\(CurrencyFormatter.string(amount))"
+        case .expense: "−\(CurrencyFormatter.string(amount))"
+        case .transfer: CurrencyFormatter.string(amount)
+        }
+        ToastCenter.shared.show(
+            transaction == nil ? "Added" : "Updated",
+            detail: "\(name.trimmingCharacters(in: .whitespaces)) \(signedAmount)",
+            after: .milliseconds(350)
+        )
         dismiss()
     }
 }

@@ -82,8 +82,8 @@ struct AccountCardView: View {
                     .kerning(-0.5)
                     .foregroundStyle(palette.text)
                     .monospacedDigit()
-                    .contentTransition(.numericText())
-                    .animation(.smooth(duration: 0.5), value: account.spent)
+                    .contentTransition(.numericText(value: account.spent))
+                    .animation(FinMotion.reveal, value: account.spent)
                     .minimumScaleFactor(0.7)
                     .lineLimit(1)
                 // Grouped cards share a limit, so the per-card gauge/available
@@ -101,7 +101,7 @@ struct AccountCardView: View {
                         }
                         .padding(.top, 8)
                         .padding(.bottom, 6)
-                        .animation(.smooth(duration: 0.6), value: account.spent)
+                        .animation(FinMotion.reveal, value: account.spent)
                 }
                 if let billed = account.billedOutstanding,
                    let unbilled = account.unbilledOutstanding {
@@ -125,8 +125,8 @@ struct AccountCardView: View {
                     .kerning(-0.5)
                     .foregroundStyle(palette.text)
                     .monospacedDigit()
-                    .contentTransition(.numericText())
-                    .animation(.smooth(duration: 0.5), value: account.currentBalance)
+                    .contentTransition(.numericText(value: account.currentBalance))
+                    .animation(FinMotion.reveal, value: account.currentBalance)
                     .minimumScaleFactor(0.7)
                     .lineLimit(1)
                 Text("Balance")

@@ -4,7 +4,7 @@
 //
 //  Custom floating pill tab bar per the Finlogue design: frosted paper
 //  capsule, selected tab as a dark pill with a coral icon + label.
-//  The dark pill slides between tabs; tab content crossfades. All four
+//  The dark pill stretches between tabs; tab content crossfades. All four
 //  tabs stay alive so scroll positions and per-tab state persist.
 //
 
@@ -44,7 +44,26 @@ struct RootTabView: View {
             .id(themeManager.theme)
             // Dark themes flip system chrome (menus, pickers, keyboard) to dark.
             .preferredColorScheme(themeManager.theme.isDark ? .dark : .light)
+            #if DEBUG
+            .task { await playMotionTourIfRequested() }
+            #endif
     }
+
+    #if DEBUG
+    /// Test hook: `-motionTour` scripts a toast and a run of tab switches, so
+    /// the app's motion can be screen-recorded in the simulator without taps.
+    private func playMotionTourIfRequested() async {
+        guard ProcessInfo.processInfo.arguments.contains("-motionTour") else { return }
+        func wait(_ seconds: Double) async { try? await Task.sleep(for: .seconds(seconds)) }
+        await wait(2.5)
+        ToastCenter.shared.show("Added", detail: "Swiggy −₹340")
+        await wait(3.5)
+        for tab in [1, 2, 3, 0, 2, 1, 0] {
+            withAnimation(FinMotion.select) { selection = tab }
+            await wait(tab == 0 ? 1.2 : 2.2)
+        }
+    }
+    #endif
 
     private var themedContent: some View {
         ZStack {
@@ -56,14 +75,24 @@ struct RootTabView: View {
             tabContent(2) { BudgetsView() }
             tabContent(3) { SettingsView() }
         }
-        .overlay(alignment: .bottom) {
-            if !tabBarVisibility.isHidden {
-                FinTabBar(selection: $selection)
-                    .padding(.bottom, 4)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+        .overlay {
+            ZStack(alignment: .bottom) {
+                Color.clear.allowsHitTesting(false)
+                if !tabBarVisibility.isHidden {
+                    FinTabBar(selection: $selection)
+                        .padding(.bottom, 4)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
+            // Stay pinned to the bottom when the keyboard comes up: the
+            // keyboard covers the bar rather than pushing it over the content.
+            .ignoresSafeArea(.keyboard, edges: .bottom)
         }
-        .animation(.snappy(duration: 0.25), value: tabBarVisibility.isHidden)
+        .animation(FinMotion.select, value: tabBarVisibility.isHidden)
+        .overlay(alignment: .top) {
+            FinToastView(center: .shared)
+                .padding(.top, 4)
+        }
         .environmentObject(tabBarVisibility)
     }
 
@@ -71,18 +100,24 @@ struct RootTabView: View {
     private func tabContent(_ index: Int, @ViewBuilder content: () -> some View) -> some View {
         let isSelected = selection == index
         content()
-            .opacity(isSelected ? 1 : 0)
-            .scaleEffect(isSelected ? 1 : 0.98)
+            .environment(\.isTabActive, isSelected)
+            // Scoped: only the crossfade itself animates, nothing else that
+            // happens to change in the same update as a tab switch.
+            .animation(FinMotion.swap) { view in
+                view
+                    .opacity(isSelected ? 1 : 0)
+                    .scaleEffect(isSelected ? 1 : 0.98)
+            }
             .allowsHitTesting(isSelected)
             .accessibilityHidden(!isSelected)
-            .animation(.easeInOut(duration: 0.25), value: selection)
     }
 }
 
 private struct FinTabBar: View {
     @Binding var selection: Int
 
-    @Namespace private var pillNamespace
+    /// Per-tab tick that bounces the icon of the tab just picked.
+    @State private var bounces = [0, 0, 0, 0]
 
     private let tabs: [(symbol: String, label: String)] = [
         ("house.fill", "Home"),
@@ -92,46 +127,42 @@ private struct FinTabBar: View {
     ]
 
     var body: some View {
-        HStack(spacing: 4) {
-            ForEach(tabs.indices, id: \.self) { index in
+        LiquidSegmentedControl(
+            items: Array(tabs.indices),
+            selection: selection,
+            spacing: 4,
+            onSelect: { index in
+                guard index != selection else { return }
+                FinHaptics.selection()
+                bounces[index] += 1
+                withAnimation(FinMotion.select) {
+                    selection = index
+                }
+            },
+            segment: { index, isSelected, onPill in
                 let tab = tabs[index]
-                let isSelected = selection == index
-                Button {
-                    FinHaptics.selection()
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                        selection = index
-                    }
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: tab.symbol)
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(isSelected ? FinTheme.coral : FinTheme.ink400)
-                        if isSelected {
-                            Text(tab.label)
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(FinTheme.cream)
-                                .fixedSize()
-                                .transition(
-                                    .asymmetric(
-                                        insertion: .opacity.combined(with: .move(edge: .leading)),
-                                        removal: .opacity
-                                    )
-                                )
-                        }
-                    }
-                    .padding(.horizontal, isSelected ? 18 : 13)
-                    .frame(height: 44)
-                    .background {
-                        if isSelected {
-                            Capsule()
-                                .fill(FinTheme.ink)
-                                .matchedGeometryEffect(id: "selection-pill", in: pillNamespace)
-                        }
+                HStack(spacing: 8) {
+                    Image(systemName: tab.symbol)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(onPill ? FinTheme.coral : FinTheme.ink400)
+                        .symbolEffect(.bounce.down, options: .speed(1.4), value: bounces[index])
+                    if isSelected {
+                        Text(tab.label)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(onPill ? FinTheme.cream : FinTheme.ink)
+                            .fixedSize()
+                            .blurSwapTransition()
                     }
                 }
-                .buttonStyle(.plain)
+                .padding(.horizontal, isSelected ? 18 : 13)
+                .frame(height: 44)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(tab.label)
+            },
+            pill: { shape in
+                shape.fill(FinTheme.ink)
             }
-        }
+        )
         .padding(8)
         .background {
             Capsule()

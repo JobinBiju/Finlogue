@@ -14,7 +14,7 @@ struct SMSInboxView: View {
     @EnvironmentObject private var tabBarVisibility: TabBarVisibility
     @Environment(\.dismiss) private var dismiss
 
-    @Query(sort: \PendingTransaction.date, order: .reverse)
+    @Query(sort: \PendingTransaction.date, order: .reverse, animation: FinMotion.shrink)
     private var pending: [PendingTransaction]
     @Query(sort: \Account.createdAt) private var accounts: [Account]
     @Query(sort: \Category.sortOrder) private var categories: [Category]
@@ -43,7 +43,7 @@ struct SMSInboxView: View {
                         categories: categories,
                         isExpanded: expandedID == item.id,
                         onToggle: {
-                            withAnimation(.snappy) {
+                            withAnimation(FinMotion.grow) {
                                 expandedID = expandedID == item.id ? nil : item.id
                             }
                         },
@@ -144,10 +144,15 @@ struct SMSInboxView: View {
                 last4: last4, kind: kind, account: account, store: store
             )
         }
-        SMSImportService.confirm(
-            item, store: store, overrideAccount: account, overrideCategory: category
-        )
+        let bookedName = item.name
+        let bookedAmount = CurrencyFormatter.string(item.amount)
+        withAnimation(FinMotion.shrink) {
+            SMSImportService.confirm(
+                item, store: store, overrideAccount: account, overrideCategory: category
+            )
+        }
         FinHaptics.success()
+        ToastCenter.shared.show("Added", detail: "\(bookedName) \(bookedAmount)")
     }
 
     /// Sender is blank for a pasted message, so it carries no trust tier and can
@@ -159,7 +164,9 @@ struct SMSInboxView: View {
     }
 
     private func discard(_ item: PendingTransaction) {
-        SMSImportService.discard(item, store: store)
+        withAnimation(FinMotion.shrink) {
+            SMSImportService.discard(item, store: store)
+        }
         FinHaptics.tap()
     }
 }

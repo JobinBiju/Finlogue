@@ -36,8 +36,8 @@ struct WatchHomeView: View {
                 .minimumScaleFactor(0.5)
                 .lineLimit(1)
                 .monospacedDigit()
-                .contentTransition(.numericText())
-                .animation(.smooth(duration: 0.5), value: netWorth)
+                .contentTransition(.numericText(value: netWorth))
+                .animation(FinMotion.reveal, value: netWorth)
 
             HStack(spacing: 4) {
                 Image(systemName: "arrow.up.circle.fill")
@@ -46,8 +46,8 @@ struct WatchHomeView: View {
                 Text(CurrencyFormatter.string(monthSpent))
                     .font(.system(size: 16, weight: .semibold, design: .rounded))
                     .monospacedDigit()
-                    .contentTransition(.numericText())
-                    .animation(.smooth(duration: 0.5), value: monthSpent)
+                    .contentTransition(.numericText(value: monthSpent))
+                    .animation(FinMotion.reveal, value: monthSpent)
                 Text("this month")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
