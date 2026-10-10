@@ -617,11 +617,14 @@ final class TransactionStore: ObservableObject {
             calendar.date(byAdding: .day, value: -days, to: .now) ?? .now
         }
 
+        // Salary and rent land at the start of this month and the last, so
+        // "this month" always has income whatever day the seed runs.
+        let intoMonth = calendar.component(.day, from: .now) - 1
         let samples: [(TransactionType, String, Double, Int, String?, Account)] = [
-            (.income, "Salary", 85_000, 44, "Salary", bank),
-            (.income, "Salary", 85_000, 14, "Salary", bank),
-            (.expense, "Rent", 22_000, 43, "Rent", bank),
-            (.expense, "Rent", 22_000, 13, "Rent", bank),
+            (.income, "Salary", 85_000, intoMonth + 30, "Salary", bank),
+            (.income, "Salary", 85_000, intoMonth, "Salary", bank),
+            (.expense, "Rent", 22_000, intoMonth + 29, "Rent", bank),
+            (.expense, "Rent", 22_000, max(intoMonth - 1, 0), "Rent", bank),
             (.expense, "Swiggy dinner", 460, 36, "Food & Dining", card),
             (.expense, "BigBasket", 2_350, 32, "Groceries", card),
             (.expense, "Uber to office", 240, 28, "Transport", cash),
