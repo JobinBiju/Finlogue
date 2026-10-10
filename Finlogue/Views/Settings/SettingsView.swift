@@ -230,7 +230,7 @@ struct SettingsView: View {
 
     private var coachStatus: String {
         switch SpendingCoach.availability {
-        case .available: "On — writes your monthly review and ways to save"
+        case .available: "On — writes your card cycle review and ways to save"
         case .turnedOff: "Off — turn it on in Settings › Apple Intelligence & Siri"
         case .preparing: "Downloading the on-device model…"
         case .unsupported: "Not available here — you'll still get the numbers and alerts"

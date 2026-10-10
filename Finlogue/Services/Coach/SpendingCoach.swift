@@ -80,6 +80,9 @@ enum SpendingCoach {
         // (usually a botched sum): the summary falls back to the plain one.
         let known = figures(in: facts)
         func checked(_ text: String) -> String {
+            // With nothing to compare against yet, the model tends to garble
+            // "less than one full cycle of history" — say it plainly instead.
+            guard digest.hasHistory else { return plainSummary(for: digest) }
             let summary = tidy(text)
             return figures(in: summary).isSubset(of: known) ? summary : plainSummary(for: digest)
         }
@@ -429,7 +432,7 @@ enum SpendingCoach {
 
     /// Bump when the prompt or output format changes, so reviews written
     /// the old way are replaced rather than served from the cache.
-    private static let promptVersion = 7
+    private static let promptVersion = 8
 
     /// What a cached review must match to still be current.
     static func reviewKey(for digest: SpendingDigest) -> String {
