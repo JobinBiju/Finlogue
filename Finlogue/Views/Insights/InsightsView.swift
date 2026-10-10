@@ -102,10 +102,6 @@ struct InsightsView: View {
         return InsightsService.dailySpend(in: context, month: selectedMonth)
     }
 
-    private var monthExpenseTotal: Double {
-        categoryTotals.reduce(0) { $0 + $1.total }
-    }
-
     var body: some View {
         NavigationStack {
             List {
@@ -113,7 +109,13 @@ struct InsightsView: View {
                 if !billableCards.isEmpty {
                     periodSection
                 }
-                if categoryTotals.isEmpty && dailySpend.isEmpty {
+                // Fetched once per body and handed to the sections: chart
+                // closures re-run during layout while the list scrolls, and
+                // reading the computed properties there re-ran the SwiftData
+                // fetch on every pass — the scroll stutter.
+                let totals = categoryTotals
+                let daily = dailySpend
+                if totals.isEmpty && daily.isEmpty {
                     Section {
                         ContentUnavailableView(
                             "No data for this month",
@@ -125,8 +127,8 @@ struct InsightsView: View {
                     .padding(.vertical, 64)
                 } else {
                     coachSection
-                    categoryBreakdownSection
-                    trendSection
+                    categoryBreakdownSection(totals)
+                    trendSection(daily)
                     incomeExpenseSection
                 }
             }
@@ -283,15 +285,16 @@ struct InsightsView: View {
 
     // MARK: Category donut
 
-    private var categoryBreakdownSection: some View {
-        Section {
+    private func categoryBreakdownSection(_ totals: [CategoryTotal]) -> some View {
+        let spent = totals.reduce(0) { $0 + $1.total }
+        return Section {
             VStack(spacing: 24) {
                 Text("Spending by category")
                     .finSectionLabel()
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 Chart {
-                    ForEach(categoryTotals) { item in
+                    ForEach(totals) { item in
                         SectorMark(
                             angle: .value("Amount", item.total * sweep),
                             innerRadius: .ratio(0.64),
@@ -304,7 +307,7 @@ struct InsightsView: View {
                     // unswept part of the ring, so the sectors grow clockwise
                     // instead of just rescaling.
                     SectorMark(
-                        angle: .value("Amount", monthExpenseTotal * (1 - sweep)),
+                        angle: .value("Amount", spent * (1 - sweep)),
                         innerRadius: .ratio(0.64)
                     )
                     .foregroundStyle(Color.clear)
@@ -318,12 +321,12 @@ struct InsightsView: View {
                             .foregroundStyle(FinTheme.ink400)
                         Group {
                             if hasCounted {
-                                Text(CurrencyFormatter.string(monthExpenseTotal))
+                                Text(CurrencyFormatter.string(spent))
                                     .contentTransition(.numericText())
-                                    .animation(.smooth(duration: 0.5), value: monthExpenseTotal)
+                                    .animation(.smooth(duration: 0.5), value: spent)
                             } else {
-                                CountingCurrencyText(monthExpenseTotal * sweep)
-                                    .animation(FinMotion.count, value: monthExpenseTotal)
+                                CountingCurrencyText(spent * sweep)
+                                    .animation(FinMotion.count, value: spent)
                                     .animation(FinMotion.count, value: sweep)
                             }
                         }
@@ -342,7 +345,7 @@ struct InsightsView: View {
                 // Rows keep their position across month changes; content
                 // crossfades in place and amounts roll numerically.
                 VStack(spacing: 12) {
-                    ForEach(Array(categoryTotals.prefix(8).enumerated()), id: \.offset) { index, item in
+                    ForEach(Array(totals.prefix(8).enumerated()), id: \.offset) { index, item in
                         HStack(spacing: 10) {
                             Image(systemName: item.symbol)
                                 .font(.system(size: 13, weight: .semibold))
@@ -364,8 +367,8 @@ struct InsightsView: View {
                                 .foregroundStyle(FinTheme.ink)
                                 .monospacedDigit()
                                 .contentTransition(.numericText())
-                            Text(monthExpenseTotal > 0
-                                 ? "\(Int((item.total / monthExpenseTotal * 100).rounded()))%"
+                            Text(spent > 0
+                                 ? "\(Int((item.total / spent * 100).rounded()))%"
                                  : "")
                                 .font(.system(size: 12))
                                 .foregroundStyle(FinTheme.ink400)
@@ -386,7 +389,7 @@ struct InsightsView: View {
 
     // MARK: Daily trend
 
-    private var trendSection: some View {
+    private func trendSection(_ daily: [DailyTotal]) -> some View {
         Section {
             VStack(alignment: .leading, spacing: 14) {
                 Text("Spending through the month")
@@ -394,7 +397,7 @@ struct InsightsView: View {
                 // Crossfade between months — a fresh identity per month avoids
                 // ugly mark-morphing when the x-domain changes.
                 ZStack {
-                    SpendingTrendChart(data: dailySpend, hasDrawn: $trendDrawn)
+                    SpendingTrendChart(data: daily, hasDrawn: $trendDrawn)
                         .frame(height: 150)
                         .id(periodKey)
                         .transition(.opacity)
