@@ -1,6 +1,6 @@
 # Finlogue
 
-A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI**, **SwiftData**, and **WatchConnectivity**. Log payments from bank accounts, credit cards, and cash; move money between your own accounts with transfers; record card fees; split bills with friends and track who owes you back; categorize spending; set budgets; automate recurring payments, EMIs, and card bills — and do quick entry right from your wrist, with transactions syncing both ways between phone and watch.
+A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI**, **SwiftData**, and **WatchConnectivity**. Log payments from bank accounts, credit cards, and cash; move money between your own accounts with transfers; record card fees; split bills with friends and track who owes you back; categorize spending; set budgets; automate recurring payments, EMIs, and card bills; get an on-device **Apple Intelligence** spending coach that reviews your card cycle and suggests ways to save — and do quick entry right from your wrist, with transactions syncing both ways between phone and watch.
 
 ---
 
@@ -35,8 +35,11 @@ A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI*
 - **Accounts** — bank, credit card, and cash accounts, grouped as **Banks / Cards / Others** everywhere they're listed. Balances are *computed* from transactions (no drift). Theme-colored gradient cards on the Home carousel with snap scrolling; card text auto-switches between light and dark for legibility in every theme.
 - **Credit cards** — credit limit with a utilization gauge and available credit; editable **current outstanding** (rebase to match your real statement anytime); optional **statement day** for the billing cycle, which splits the outstanding into **billed vs unbilled** on the account card. Paying a bill (a transfer into the card) drains the billed amount first.
 - **Categories** — customizable with SF Symbol icons and colors; sensible defaults (including Investments) seeded on first launch.
-- **Insights** — Swift Charts with a nav-bar month switcher: spending-by-category donut with an in-place crossfading legend, cumulative daily spend trend, and income vs expense across the last 6 months. Subtle animations throughout the app — rolling numeric totals, animated budget bars, chart crossfades between months.
-- **Budgets** — monthly limit per category with progress bars and over-budget warnings.
+- **Insights** — Swift Charts by card statement cycle (default) or calendar month, with a month switcher: spending-by-category donut with an in-place crossfading legend, cumulative daily spend trend, and income vs expense across the last 6 months. Subtle animations throughout the app — rolling numeric totals, animated budget bars, chart crossfades between months.
+- **Spending coach (Apple Intelligence)** — a card at the top of Insights reviews your credit-card statement cycle so far (or the calendar month if no card has a statement day): what you've spent against your usual (the average of your last three cycles, compared at the same day), what stands out, your habits (repeat merchants, weekend spending, lots of small purchases), and up to three **ways to save**. Every figure is worked out by the app; the on-device model only writes the words, and each tip is tied to something actually worth cutting — never a category you're already under on, and never rent, EMIs, insurance, or investments. A quiet cycle gets fewer tips, or none. Reviews are cached and rewritten when your spending changes, or on demand with the refresh button.
+- **Spending alerts** — opt-in notifications when a category passes its usual for the cycle, runs well ahead of where you usually are, or a budget reaches 80% / 100%. Each alert fires once per cycle and carries a one-line tip from Apple Intelligence; tapping it opens Insights.
+- **Private by design** — the coach runs entirely on your iPhone with Apple's Foundation Models framework. Your transactions never leave the device. Without Apple Intelligence, Insights still shows a plain summary, the stand-out categories, and your habits.
+- **Budgets** — limit per category with progress bars and over-budget warnings, tracked by card statement cycle (default) or calendar month.
 - **Recurring payments & mandates** — subscriptions, EMIs, loan auto-pay, and **recurring transfers** (e.g., a monthly salary sweep or card-bill autopay). Auto-post rules log the transaction when due (with catch-up for missed periods, each posted exactly once); confirm-first rules appear as Upcoming reminders on Home. Loans stop automatically after the last installment. Recurring expenses can also be **split** with people, so each posted occurrence carries the same shares (e.g. a subscription a flatmate splits with you).
 - **Display currency** — INR by default, configurable in Settings.
 - **Themes** — pick from **Tino** (warm cream & coral), **Plum** (ghost-white & plum), **Olive** (cornsilk & olive), **Ocean** (alice-blue & teal), or the dark **Noir** (charcoal & terracotta) in Settings. The whole app recolors instantly, and the choice syncs to the watch so it re-skins too. Dark themes flip system controls (menus, pickers, keyboard) to match; light themes are enforced light regardless of the system setting.
@@ -60,6 +63,7 @@ A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI*
 
 - Xcode 16 or later
 - iOS 17.6+ / watchOS 11+
+- For the spending coach: iOS 26+ on an Apple Intelligence–capable iPhone with Apple Intelligence turned on (Settings → Apple Intelligence & Siri). Everything else works without it.
 
 ### Steps
 
@@ -84,6 +88,9 @@ A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI*
 ### Debug launch arguments (DEBUG builds only)
 
 - `-seedSampleData` — fills the store with two months of sample data (accounts, transactions, transfers, budgets, recurring rules).
+- `-seedSpendingHistory` — fills an empty store with four steady months plus a fortnight of heavy food spending, so the spending coach has a "usual" to compare against.
+- `-previewCoachReview` — prints the coach's fact sheet and the review Apple Intelligence writes from it.
+- `-previewSpendingAlerts` — prints every spending alert the current cycle would raise, without needing notification permission.
 - `-initialTab <0-3>` — opens the iOS app on a specific tab.
 - `-showAddTransaction` / `-showAddRule` — opens the New Transaction or Recurring Payment sheet on launch.
 - `-searchText <query>` — pre-fills the home search field.
@@ -91,7 +98,7 @@ A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI*
 - `-showAddCategory` / `-showAddPerson` — opens the category or person editor on launch.
 - `-showFilter` — opens the transaction filter sheet on launch.
 - `-insightsMonthOffset <±N>` — opens Insights N months from the current one.
-- `-theme <tino|plum|olive|ocean>` — forces a theme at launch (iOS and watch).
+- `-theme <tino|plum|olive|ocean|noir>` — forces a theme at launch (iOS and watch).
 - `-autoAddTestTransaction` (watch) — simulates a quick-add and syncs it to the phone.
 - `-watchQuickAdd` / `-watchTransactions` (watch) — opens the quick-add flow or transaction list directly.
 - `-quickAddAccountStep` (watch) — opens the quick-add flow directly on the account step.
@@ -113,7 +120,10 @@ Finlogue/
 ├── Finlogue/                    # iOS app
 │   ├── FinlogueApp.swift
 │   ├── Services/                # TransactionStore (single mutation point),
-│   │                            # RecurringEngine, InsightsService
+│   │   │                        # RecurringEngine, InsightsService
+│   │   └── Coach/               # Spending coach: SpendingAnalyzer (all the
+│   │                            # figures), SpendingCoach (Foundation Models),
+│   │                            # SpendingAlerts, SpendingPeriod
 │   └── Views/                   # Home, Editors, Insights, Budgets, Settings
 └── FinWatch Watch App/          # watchOS app
     ├── FinWatchApp.swift
@@ -124,7 +134,7 @@ Finlogue/
 
 ## License
 
-This project is licensed under the MIT License. See the LICENSE file for details.
+This project is licensed under the GNU General Public License v3.0 (GPL-3.0). See the LICENSE file for details.
 
 ---
 
