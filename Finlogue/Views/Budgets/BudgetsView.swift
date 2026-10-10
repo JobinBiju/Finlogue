@@ -19,7 +19,7 @@ struct BudgetsView: View {
     @State private var showAddBudget = false
 
     private enum PeriodMode: String, CaseIterable {
-        case monthly, billing
+        case billing, monthly
         var label: String {
             switch self {
             case .monthly: "Calendar month"
@@ -28,7 +28,7 @@ struct BudgetsView: View {
         }
     }
 
-    @State private var periodMode: PeriodMode = .monthly
+    @State private var periodMode: PeriodMode = .billing
 
     /// Flips the first time Budgets is on screen; bars fill from empty.
     @State private var revealed = false

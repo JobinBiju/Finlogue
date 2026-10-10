@@ -17,7 +17,7 @@ struct InsightsView: View {
     @State private var selectedMonth = Self.initialMonth
 
     private enum PeriodMode: String, CaseIterable {
-        case monthly, billing
+        case billing, monthly
         var label: String {
             switch self {
             case .monthly: "Calendar month"
@@ -26,7 +26,7 @@ struct InsightsView: View {
         }
     }
 
-    @State private var periodMode: PeriodMode = .monthly
+    @State private var periodMode: PeriodMode = .billing
 
     /// 0 → 1 the first time Insights is on screen: the donut sweeps round and
     /// the total counts up with it. Switching month or period afterwards uses
