@@ -19,6 +19,8 @@ struct SettingsView: View {
     @Query private var pendingImports: [PendingTransaction]
 
     @AppStorage(AppSettings.currencyCodeKey) private var currencyCode = AppSettings.defaultCurrencyCode
+    @AppStorage(AppSettings.spendingAlertsKey) private var spendingAlertsEnabled = false
+    @State private var showNotificationsDenied = false
 
     @State private var editingRule: RecurringRule?
     @State private var showAddRule = Self.launchIntoAddRule
@@ -87,6 +89,7 @@ struct SettingsView: View {
                 currencySection
                 manageSection
                 recurringSection
+                coachSection
                 appearanceSection
                 dataSection
                 syncSection
@@ -144,6 +147,93 @@ struct SettingsView: View {
             } message: {
                 Text(backupMessage ?? "")
             }
+            .alert("Notifications are off", isPresented: $showNotificationsDenied) {
+                Button("Not now", role: .cancel) {}
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openNotificationSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+            } message: {
+                Text("Allow notifications for Finlogue to get spending alerts.")
+            }
+        }
+    }
+
+    // MARK: Spending coach
+
+    private var coachSection: some View {
+        Section {
+            HStack(spacing: 12) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(FinTheme.coral)
+                    .frame(width: 34, height: 34)
+                    .background(FinTheme.tintCoral, in: Circle())
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Apple Intelligence")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(FinTheme.ink)
+                    Text(coachStatus)
+                        .font(.system(size: 12))
+                        .foregroundStyle(FinTheme.ink400)
+                }
+                Spacer()
+            }
+            .padding(.vertical, 4)
+            .listRowBackground(FinTheme.paper)
+            .listRowSeparatorTint(FinTheme.lineSoft)
+
+            Toggle(isOn: Binding(
+                get: { spendingAlertsEnabled },
+                set: { isOn in
+                    FinHaptics.selection()
+                    spendingAlertsEnabled = isOn
+                    guard isOn else {
+                        SpendingAlerts.shared.disable()
+                        return
+                    }
+                    Task {
+                        if !(await SpendingAlerts.shared.enable(context: store.context)) {
+                            showNotificationsDenied = true
+                        }
+                    }
+                }
+            )) {
+                HStack(spacing: 12) {
+                    Image(systemName: "bell.badge")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(FinTheme.ink600)
+                        .frame(width: 34, height: 34)
+                        .background(FinTheme.paperInset, in: Circle())
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Spending alerts")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(FinTheme.ink)
+                        Text("When a category passes your usual or a budget nears its limit")
+                            .font(.system(size: 12))
+                            .foregroundStyle(FinTheme.ink400)
+                    }
+                }
+            }
+            .tint(FinTheme.coral)
+            .padding(.vertical, 4)
+            .listRowBackground(FinTheme.paper)
+        } header: {
+            SectionHeader("Spending coach")
+        } footer: {
+            Text("Reviews, tips and alerts are worked out on your iPhone. Your transactions never leave the device.")
+                .font(.system(size: 12))
+                .foregroundStyle(FinTheme.ink400)
+        }
+    }
+
+    private var coachStatus: String {
+        switch SpendingCoach.availability {
+        case .available: "On — writes your monthly review and ways to save"
+        case .turnedOff: "Off — turn it on in Settings › Apple Intelligence & Siri"
+        case .preparing: "Downloading the on-device model…"
+        case .unsupported: "Not available here — you'll still get the numbers and alerts"
         }
     }
 

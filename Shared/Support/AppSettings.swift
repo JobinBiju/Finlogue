@@ -20,6 +20,12 @@ enum AppSettings {
     // skip the review inbox. Off by default — see SMSImportService.
     static let smsAutoConfirmKey = "smsAutoConfirmEnabled"
 
+    // Spending coach: opt-in notifications, the alerts already sent this
+    // month, and cached month reviews from the on-device model.
+    static let spendingAlertsKey = "spendingAlertsEnabled"
+    static let spendingAlertsSentKey = "spendingAlertsSent"
+    static let coachReviewsKey = "spendingCoachReviews"
+
     static var currencyCode: String {
         UserDefaults.standard.string(forKey: currencyCodeKey) ?? defaultCurrencyCode
     }

@@ -105,6 +105,7 @@ final class PhoneSyncEngine: NSObject, ObservableObject {
             context.insert(transaction)
             try context.save()
             pushSnapshot()
+            SpendingAlerts.shared.scheduleCheck(context: context)
         } catch {
             print("PhoneSyncEngine.applyIncomingTransaction failed: \(error)")
         }

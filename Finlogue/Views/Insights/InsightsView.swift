@@ -69,33 +69,12 @@ struct InsightsView: View {
         billableCards.first
     }
 
-    /// The billing cycle overlapping `selectedMonth`: statement day of that
-    /// month through the day before the next statement. Clamped for short
-    /// months. For the current month, the cycle rolls over only *after* the
-    /// statement day — with a statement on the 15th, through Sep 15 you're
-    /// still in the Aug 15 – Sep 15 cycle; Sep 15 – Oct 15 starts on the 16th.
+    /// The billing cycle overlapping `selectedMonth` — see
+    /// `BillingCycle.cycle(statementDay:overlapping:)`, which the spending
+    /// coach shares so both agree on the dates.
     private var billingInterval: DateInterval? {
-        guard let card = selectedCard, let statementDay = card.statementDay else { return nil }
-        func anchor(inMonthOf reference: Date) -> Date? {
-            guard let monthInterval = calendar.dateInterval(of: .month, for: reference),
-                  let dayCount = calendar.range(of: .day, in: .month, for: reference)?.count
-            else { return nil }
-            return calendar.date(
-                byAdding: .day, value: min(statementDay, dayCount) - 1, to: monthInterval.start
-            )
-        }
-        var cycleMonth = selectedMonth
-        if calendar.isDate(selectedMonth, equalTo: .now, toGranularity: .month),
-           let statementDate = anchor(inMonthOf: selectedMonth),
-           calendar.startOfDay(for: .now) <= statementDate,
-           let previousMonth = calendar.date(byAdding: .month, value: -1, to: selectedMonth) {
-            cycleMonth = previousMonth
-        }
-        guard let start = anchor(inMonthOf: cycleMonth),
-              let nextMonth = calendar.date(byAdding: .month, value: 1, to: cycleMonth),
-              let end = anchor(inMonthOf: nextMonth)
-        else { return nil }
-        return DateInterval(start: start, end: end)
+        guard let statementDay = selectedCard?.statementDay else { return nil }
+        return BillingCycle.cycle(statementDay: statementDay, overlapping: selectedMonth, calendar: calendar)
     }
 
     private var isBillingMode: Bool { periodMode == .billing && billingInterval != nil }
@@ -145,6 +124,7 @@ struct InsightsView: View {
                     }
                     .padding(.vertical, 64)
                 } else {
+                    coachSection
                     categoryBreakdownSection
                     trendSection
                     incomeExpenseSection
@@ -270,6 +250,33 @@ struct InsightsView: View {
                 Text("All spending between statement dates.")
                     .font(.system(size: 12))
                     .foregroundStyle(FinTheme.ink400)
+            }
+        }
+    }
+
+    // MARK: Spending coach
+
+    /// The coach reads card cycles — the period alerts follow too — so it
+    /// sits out the calendar-month view. Months only when no card has a
+    /// statement day.
+    private var coachPeriod: SpendingPeriod? {
+        guard let statementDay = selectedCard?.statementDay, billingInterval != nil else {
+            return .month(containing: selectedMonth)
+        }
+        guard isBillingMode else { return nil }
+        return .cycle(statementDay: statementDay, overlapping: selectedMonth)
+    }
+
+    @ViewBuilder
+    private var coachSection: some View {
+        if let period = coachPeriod,
+           let digest = SpendingAnalyzer.digest(in: context, period: period),
+           digest.transactionCount > 0 {
+            Section {
+                SpendingCoachCard(digest: digest)
+                    .finEntrance(sweep > 0, index: 1)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(FinTheme.paper)
             }
         }
     }

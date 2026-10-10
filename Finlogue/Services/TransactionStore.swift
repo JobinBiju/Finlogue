@@ -46,6 +46,15 @@ final class TransactionStore: ObservableObject {
         if ProcessInfo.processInfo.arguments.contains("-seedSampleData") {
             seedSampleData()
         }
+        if ProcessInfo.processInfo.arguments.contains("-seedSpendingHistory") {
+            seedSpendingHistory()
+        }
+        if ProcessInfo.processInfo.arguments.contains("-previewSpendingAlerts") {
+            Task { [context] in await SpendingAlerts.shared.printPreview(context: context) }
+        }
+        if ProcessInfo.processInfo.arguments.contains("-previewCoachReview") {
+            Task { [context] in await SpendingCoach.printPreview(context: context) }
+        }
         if ProcessInfo.processInfo.arguments.contains("-runSMSParserChecks") {
             SMSParserChecks.run()
         }
@@ -65,6 +74,9 @@ final class TransactionStore: ObservableObject {
         drainSharedInbox()
         RecurringEngine.processDueRules(store: self)
         PhoneSyncEngine.shared.pushSnapshot()
+        // Catches imports saved while the app was in the background, where
+        // the debounced check after a save may never have run.
+        SpendingAlerts.shared.scheduleCheck(context: context)
     }
 
     /// Messages shared into the app land in an App Group file because the share
@@ -499,6 +511,7 @@ final class TransactionStore: ObservableObject {
             print("TransactionStore.persist failed: \(error)")
         }
         PhoneSyncEngine.shared.pushSnapshot()
+        SpendingAlerts.shared.scheduleCheck(context: context)
     }
 
     private func seedDefaultCategoriesIfNeeded() {
@@ -686,6 +699,103 @@ final class TransactionStore: ObservableObject {
             frequency: .monthly, dayAnchor: daysAgo(-5),
             remainingInstallments: 18, autoPost: false
         ))
+        try? context.save()
+    }
+
+    /// Test fixture: `-seedSpendingHistory` fills an empty store with four
+    /// steady months plus a fortnight where food delivery has taken off, so
+    /// the spending coach has a "usual" to compare against — by calendar month
+    /// and by the card's statement cycle (18th).
+    private func seedSpendingHistory() {
+        let existing = (try? context.fetchCount(FetchDescriptor<Transaction>())) ?? 0
+        guard existing == 0 else { return }
+        let categories = (try? context.fetch(FetchDescriptor<Category>())) ?? []
+        func category(_ name: String) -> Category? {
+            categories.first { $0.name == name }
+        }
+        let bank = Account(name: "HDFC Savings", type: .bank, openingBalance: 60_000)
+        let card = Account(name: "HDFC Card", type: .creditCard, statementDay: 18)
+        let cash = Account(name: "Wallet", type: .cash, openingBalance: 3_000)
+        [bank, card, cash].forEach { context.insert($0) }
+
+        let calendar = Calendar.current
+        let now = Date.now
+        // The fortnight the spike covers; older food and shopping stays modest.
+        let spikeStart = calendar.date(byAdding: .day, value: -13, to: calendar.startOfDay(for: now)) ?? now
+        func insert(_ type: TransactionType, _ name: String, _ amount: Double, _ date: Date,
+                    _ categoryName: String, _ account: Account) {
+            context.insert(Transaction(
+                type: type, name: name, amount: amount, date: date,
+                account: account, category: category(categoryName)
+            ))
+        }
+        func add(
+            _ type: TransactionType, _ name: String, _ amount: Double,
+            monthOffset: Int, day: Int, _ categoryName: String, _ account: Account,
+            beforeSpike: Bool = false
+        ) {
+            guard let month = calendar.date(byAdding: .month, value: monthOffset, to: now),
+                  let start = calendar.dateInterval(of: .month, for: month)?.start,
+                  let days = calendar.range(of: .day, in: .month, for: month)?.count,
+                  let date = calendar.date(
+                    byAdding: DateComponents(day: min(day, days) - 1, hour: 13), to: start
+                  ),
+                  date <= now, !beforeSpike || date < spikeStart
+            else { return }
+            insert(type, name, amount, date, categoryName, account)
+        }
+
+        // A steady routine every month.
+        for offset in -4...0 {
+            let wobble = Double(offset + 5) * 40
+            add(.income, "Salary", 85_000, monthOffset: offset, day: 1, "Salary", bank)
+            add(.expense, "Rent", 22_000, monthOffset: offset, day: 3, "Rent", bank)
+            add(.expense, "SIP · Nifty 50", 10_000, monthOffset: offset, day: 5, "Investments", bank)
+            add(.expense, "Electricity bill", 1_700 + wobble, monthOffset: offset, day: 12, "Bills & Utilities", bank)
+            add(.expense, "Jio recharge", 599, monthOffset: offset, day: 15, "Bills & Utilities", card)
+            for (index, day) in [4, 11, 18, 25].enumerated() {
+                add(.expense, index.isMultiple(of: 2) ? "BigBasket" : "Zepto",
+                    1_350 + wobble + Double(index * 90), monthOffset: offset, day: day, "Groceries", card)
+            }
+            for (index, day) in [2, 6, 9, 13, 17, 21, 24, 28].enumerated() {
+                add(.expense, "Uber", 210 + Double(index * 15), monthOffset: offset, day: day, "Transport", cash)
+            }
+            add(.expense, "Petrol", 2_000, monthOffset: offset, day: 16, "Transport", card)
+            add(.expense, "PVR Cinemas", 780, monthOffset: offset, day: 20, "Entertainment", card)
+
+            // Modest eating out and regular shopping, up to the spike.
+            for (index, day) in [7, 14, 19, 26].enumerated() {
+                add(.expense, index.isMultiple(of: 2) ? "Swiggy" : "Zomato",
+                    420 + wobble + Double(index * 30), monthOffset: offset, day: day,
+                    "Food & Dining", card, beforeSpike: true)
+            }
+            add(.expense, "Dinner out", 1_400, monthOffset: offset, day: 22, "Food & Dining", card, beforeSpike: true)
+            add(.expense, "Myntra order", 2_600 + wobble, monthOffset: offset, day: 10, "Shopping", card, beforeSpike: true)
+            add(.expense, "Amazon order", 1_900, monthOffset: offset, day: 23, "Shopping", card, beforeSpike: true)
+        }
+
+        // The last fortnight: delivery most days, lots of coffees, little shopping.
+        for daysAgo in 0...13 {
+            guard let day = calendar.date(byAdding: .day, value: -daysAgo, to: calendar.startOfDay(for: now)),
+                  let lunch = calendar.date(byAdding: .hour, value: 13, to: day),
+                  let morning = calendar.date(byAdding: .hour, value: 9, to: day)
+            else { continue }
+            if daysAgo % 4 != 3 {
+                insert(.expense, "Swiggy", 380 + Double((daysAgo % 4) * 70), min(lunch, now), "Food & Dining", card)
+            }
+            if daysAgo.isMultiple(of: 2) {
+                insert(.expense, "Third Wave Coffee", 240, min(morning, now), "Food & Dining", cash)
+            }
+        }
+        if let dinner = calendar.date(byAdding: .day, value: -6, to: now) {
+            insert(.expense, "Dinner out", 2_300, dinner, "Food & Dining", card)
+        }
+        if let order = calendar.date(byAdding: .day, value: -5, to: now) {
+            insert(.expense, "Amazon order", 900, order, "Shopping", card)
+        }
+
+        context.insert(Budget(category: category("Food & Dining"), limit: 6_000))
+        context.insert(Budget(category: category("Groceries"), limit: 7_000))
         try? context.save()
     }
     #endif

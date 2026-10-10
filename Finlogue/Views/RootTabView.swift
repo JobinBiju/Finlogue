@@ -22,6 +22,7 @@ struct RootTabView: View {
     // the content with the new palette. `selection` lives above the id, so the
     // current tab survives the swap.
     @ObservedObject private var themeManager = ThemeManager.shared
+    @ObservedObject private var notificationRouter = NotificationRouter.shared
 
     /// Test hook: `-initialTab N` launch argument opens a specific tab.
     private static var initialTab: Int {
@@ -44,6 +45,11 @@ struct RootTabView: View {
             .id(themeManager.theme)
             // Dark themes flip system chrome (menus, pickers, keyboard) to dark.
             .preferredColorScheme(themeManager.theme.isDark ? .dark : .light)
+            // A tapped spending alert opens Insights.
+            .onReceive(notificationRouter.$requestedTab.compactMap { $0 }) { tab in
+                withAnimation(FinMotion.select) { selection = tab }
+                notificationRouter.requestedTab = nil
+            }
             #if DEBUG
             .task { await playMotionTourIfRequested() }
             #endif

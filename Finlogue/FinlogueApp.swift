@@ -20,6 +20,7 @@ struct FinlogueApp: App {
         self.container = container
         _store = StateObject(wrappedValue: TransactionStore(container: container))
         PhoneSyncEngine.shared.configure(container: container)
+        NotificationRouter.shared.install()
     }
 
     var body: some Scene {
