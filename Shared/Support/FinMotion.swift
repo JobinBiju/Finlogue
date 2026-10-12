@@ -2,10 +2,10 @@
 //  FinMotion.swift
 //  Finlogue
 //
-//  Motion vocabulary, tuned against a reference morphing-shape motion study:
-//  springs everywhere with a tiny overshoot at most, content that swaps with
-//  a short blur, and outgoing content that leaves before incoming arrives.
-//  Every token falls back to a short crossfade under Reduce Motion.
+//  The house motion tokens (Emil Kowalski's craft rules + the Scoop motion
+//  values). Every duration, curve and spring in the app comes from here;
+//  nothing is written inline. Motion confirms and orders content — it never
+//  decorates. Under Reduce Motion, movement drops to a short fade.
 //
 
 import SwiftUI
@@ -16,31 +16,63 @@ import UIKit
 #endif
 
 enum FinMotion {
-    // MARK: Tokens
+    // MARK: Curves
 
-    /// Press-down feedback on buttons and chips.
-    static var press: Animation { resolved(.snappy(duration: 0.18)) }
-    /// Selection changes: tabs, segments, chips.
-    static var select: Animation { resolved(.snappy(duration: 0.3)) }
-    /// Content swaps and small layout changes.
-    static var swap: Animation { resolved(.smooth(duration: 0.3)) }
-    /// Something growing into place — settles with a ~5% overshoot.
-    static var grow: Animation { resolved(.spring(duration: 0.45, bounce: 0.15)) }
-    /// Something shrinking away — no overshoot.
-    static var shrink: Animation { resolved(.smooth(duration: 0.3)) }
-    /// Shapes filling or drawing in: bars, rings, chart lines.
-    static var reveal: Animation { resolved(.smooth(duration: 0.8)) }
-    /// Counting numbers. A strong ease-out that lands on time — a spring's
-    /// long tail would leave the last digits ticking for half a second.
-    static var count: Animation { resolved(.timingCurve(0.16, 0.84, 0.3, 1, duration: 0.9)) }
+    /// The house ease-out, for anything entering, exiting or responding.
+    static let easeOutCurve = UnitCurve.bezier(
+        startControlPoint: UnitPoint(x: 0.22, y: 1), endControlPoint: UnitPoint(x: 0.36, y: 1)
+    )
+    /// For something already on screen moving somewhere without a spring.
+    static let easeInOutCurve = UnitCurve.bezier(
+        startControlPoint: UnitPoint(x: 0.77, y: 0), endControlPoint: UnitPoint(x: 0.175, y: 1)
+    )
+
+    // MARK: Springs (mass 1)
+
+    /// Settles ≈0.41s with a 3% overshoot.
+    static let pressSpring = Spring(mass: 1, stiffness: 420, damping: 30)
+    /// Settles ≈0.39s with no visible overshoot.
+    static let surfaceSpring = Spring(mass: 1, stiffness: 340, damping: 32)
+    /// Settles ≈0.69s with a 19% overshoot — celebrations only.
+    static let popSpring = Spring(mass: 1, stiffness: 380, damping: 18)
+
+    // MARK: Transitions
+
+    /// Release after a press: buttons, toggles, chevrons.
+    static var press: Animation { resolved(.spring(pressSpring)) }
+    /// Sheets, toasts, layout changes, selections that swap content in place.
+    static var surface: Animation { resolved(.spring(surfaceSpring)) }
+    /// Count-ups, growing bars, rings and donuts filling.
+    static var settle: Animation { resolved(.timingCurve(easeOutCurve, duration: 0.9)) }
+    /// A success mark landing. Rare: confirmations only.
+    static var pop: Animation { resolved(.spring(popSpring)) }
+    /// Opacity only: scrims, exits, label swaps, the Reduce Motion stand-in.
+    static let fade = Animation.linear(duration: 0.2)
+    /// A line chart drawing its stroke.
+    static var draw: Animation { resolved(.timingCurve(easeOutCurve, duration: 1.4)) }
+    /// Already on screen and moving: the tab pill, period switches that reload.
+    static var move: Animation { resolved(.timingCurve(easeInOutCurve, duration: 0.26)) }
+
+    // MARK: Durations
+
+    /// Press-down, colour, frequent tiny changes.
+    static var fast: Animation { resolved(.timingCurve(easeOutCurve, duration: 0.15)) }
+    /// Menus, accordions, form rows showing or hiding, quick exits.
+    static var quick: Animation { resolved(.timingCurve(easeOutCurve, duration: 0.2)) }
+    /// In-app entrances.
+    static var base: Animation { resolved(.timingCurve(easeOutCurve, duration: 0.26)) }
+
+    // MARK: Choreography
 
     /// Delay between choreographed siblings.
-    static let stagger: Double = 0.045
+    static let stagger: Double = 0.06
+    /// Siblings past this many arrive with the last one.
+    static let maxStagger = 6
 
-    /// Outgoing half of a blur swap — quick, so it clears before the new content lands.
-    static var swapOut: Animation { resolved(.smooth(duration: 0.12)) }
-    /// Incoming half of a blur swap — waits for the outgoing half.
-    static var swapIn: Animation { resolved(.smooth(duration: 0.28)).delay(reduceMotion ? 0 : 0.08) }
+    /// The delay for the `index`th sibling, capped so long groups don't trail.
+    static func staggered(_ index: Int) -> Double {
+        Double(min(index, maxStagger - 1)) * stagger
+    }
 
     // MARK: Reduce Motion
 
@@ -53,17 +85,17 @@ enum FinMotion {
     }
 
     private static func resolved(_ animation: Animation) -> Animation {
-        reduceMotion ? .easeInOut(duration: 0.2) : animation
+        reduceMotion ? fade : animation
     }
 }
 
 // MARK: - Blur swap
 
-/// Content fades through a short blur with a hint of scale — the "swap"
-/// used whenever text or content changes inside a container that stays put.
+/// Content crossfades through a light blur with a hint of scale — used when
+/// text or content swaps inside a container that stays put.
 struct BlurSwap: Transition {
-    var radius: CGFloat = 6
-    var scale: CGFloat = 0.96
+    var radius: CGFloat = 2
+    var scale: CGFloat = 0.97
 
     func body(content: Content, phase: TransitionPhase) -> some View {
         content
@@ -74,18 +106,18 @@ struct BlurSwap: Transition {
 }
 
 extension View {
-    /// Blur swap with exit-before-enter timing, so swapped text never overlaps.
-    func blurSwapTransition(radius: CGFloat = 6, scale: CGFloat = 0.96) -> some View {
+    /// Blur swap: arrives on the house ease-out, leaves on a quicker fade.
+    func blurSwapTransition(radius: CGFloat = 2, scale: CGFloat = 0.97) -> some View {
         transition(
             AsymmetricTransition(
-                insertion: BlurSwap(radius: radius, scale: scale).animation(FinMotion.swapIn),
-                removal: BlurSwap(radius: radius, scale: scale).animation(FinMotion.swapOut)
+                insertion: BlurSwap(radius: radius, scale: scale).animation(FinMotion.quick),
+                removal: BlurSwap(radius: radius, scale: scale).animation(FinMotion.fade)
             )
         )
     }
 
-    /// One-time entrance: rises and un-blurs into place, `index` steps after
-    /// its choreographed siblings. Under Reduce Motion it only fades.
+    /// One-time entrance: rises 12pt and fades in, `index` steps after its
+    /// choreographed siblings (capped at six). Under Reduce Motion it only fades.
     func finEntrance(_ isVisible: Bool, index: Int = 0) -> some View {
         modifier(EntranceModifier(isVisible: isVisible, index: index))
     }
@@ -100,20 +132,16 @@ private struct EntranceModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .opacity(isVisible ? 1 : 0)
-            .blur(radius: isVisible || reduceMotion ? 0 : 4)
-            .offset(y: isVisible || reduceMotion ? 0 : 14)
-            .animation(
-                FinMotion.grow.delay(Double(index) * FinMotion.stagger),
-                value: isVisible
-            )
+            .offset(y: isVisible || reduceMotion ? 0 : 12)
+            .animation(FinMotion.base.delay(FinMotion.staggered(index)), value: isVisible)
     }
 }
 
 // MARK: - Pop
 
 extension View {
-    /// Pops the view (small → 1.18 → 1) when it appears and whenever
-    /// `trigger` changes — the "landed" beat on checks and badges.
+    /// Pops the view from 0.6 on the `pop` spring when it appears and whenever
+    /// `trigger` changes — the "landed" beat on success checks only.
     func popOnAppear(after delay: Double = 0, trigger: some Equatable = 0) -> some View {
         modifier(PopModifier(delay: delay, trigger: trigger))
     }
@@ -134,8 +162,7 @@ private struct PopModifier<Trigger: Equatable>: ViewModifier {
                 KeyframeTrack {
                     MoveKeyframe(0.6)
                     LinearKeyframe(0.6, duration: delay)
-                    SpringKeyframe(1.18, duration: 0.2, spring: .snappy)
-                    SpringKeyframe(1.0, duration: 0.26, spring: .smooth)
+                    SpringKeyframe(1.0, duration: 0.7, spring: FinMotion.popSpring)
                 }
             }
             .onAppear { if !reduceMotion { pops += 1 } }
@@ -145,20 +172,24 @@ private struct PopModifier<Trigger: Equatable>: ViewModifier {
 
 // MARK: - Pressable buttons
 
-/// Scales the label down while pressed. The action's own haptic stays at the
-/// call site, so this never double-fires feedback.
+/// Scales the label down while pressed: quickly on touch-down, back up on the
+/// `press` spring. The action's own haptic stays at the call site, so this
+/// never double-fires feedback.
 struct PressableButtonStyle: ButtonStyle {
-    var scale: CGFloat = 0.94
+    var scale: CGFloat = 0.97
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? scale : 1)
-            .animation(FinMotion.press, value: configuration.isPressed)
+            .animation(configuration.isPressed ? FinMotion.fast : FinMotion.press, value: configuration.isPressed)
     }
 }
 
 extension ButtonStyle where Self == PressableButtonStyle {
+    /// Buttons and chips.
     static var pressable: PressableButtonStyle { PressableButtonStyle() }
+    /// Small icon buttons, which need a deeper press to read.
+    static var pressableIcon: PressableButtonStyle { PressableButtonStyle(scale: 0.9) }
 }
 
 // MARK: - Liquid indicator
@@ -168,8 +199,8 @@ extension ButtonStyle where Self == PressableButtonStyle {
 /// on a slower one, so the indicator stretches toward its target and settles.
 /// Unmerged, so rapid retargets add up rather than restart.
 struct EdgeSpringAnimation: CustomAnimation {
-    var lead = Spring(duration: 0.26, bounce: 0.1)
-    var follow = Spring(duration: 0.44, bounce: 0.06)
+    var lead = FinMotion.pressSpring
+    var follow = FinMotion.surfaceSpring
 
     func animate<V: VectorArithmetic>(
         value: V, time: TimeInterval, context: inout AnimationContext<V>
@@ -205,32 +236,6 @@ struct EdgePill: Shape {
             width: max(trailing - leading, 0), height: rect.height
         )
         return Capsule(style: .continuous).path(in: span)
-    }
-}
-
-// MARK: - Counting numbers
-
-/// Currency that counts through intermediate values while animating (rather
-/// than rolling glyphs), for headline totals. Whole units mid-flight, the
-/// exact figure once it lands.
-struct CountingCurrencyText: View, Animatable {
-    var value: Double
-    /// Where `value` is heading; lets the label show exact cents on arrival.
-    var target: Double
-
-    init(_ value: Double) {
-        self.value = value
-        self.target = value
-    }
-
-    var animatableData: Double {
-        get { value }
-        set { value = newValue }
-    }
-
-    var body: some View {
-        let landed = abs(value - target) < 0.005
-        Text(CurrencyFormatter.string(landed ? target : value.rounded()))
     }
 }
 

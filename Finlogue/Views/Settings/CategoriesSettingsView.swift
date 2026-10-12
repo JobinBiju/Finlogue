@@ -95,7 +95,7 @@ struct CategoriesSettingsView: View {
                         .background(FinTheme.coral, in: Circle())
                         .shadow(color: FinTheme.coral.opacity(0.28), radius: 12, x: 0, y: 8)
                 }
-                .buttonStyle(.pressable)
+                .buttonStyle(.pressableIcon)
             }
             .textCase(nil)
             .finHeaderAligned()

@@ -152,13 +152,13 @@ struct BudgetsView: View {
                             .background(FinTheme.coral, in: Circle())
                             .shadow(color: FinTheme.coral.opacity(0.28), radius: 12, x: 0, y: 8)
                     }
-                    .buttonStyle(.pressable)
+                    .buttonStyle(.pressableIcon)
                 }
                 Text(progressCaption)
                     .font(.system(size: 13))
                     .foregroundStyle(FinTheme.ink400)
                     .contentTransition(.opacity)
-                    .animation(.smooth(duration: 0.35), value: periodMode)
+                    .animation(FinMotion.fade, value: periodMode)
             }
             .textCase(nil)
             .finHeaderAligned()
@@ -183,7 +183,7 @@ struct BudgetsView: View {
                 spacing: 4,
                 onSelect: { mode in
                     FinHaptics.selection()
-                    withAnimation(FinMotion.select) {
+                    withAnimation(FinMotion.move) {
                         periodMode = mode
                     }
                 },
@@ -274,28 +274,16 @@ struct BudgetProgressRow: View {
                     .foregroundStyle(FinTheme.ink400)
                     .monospacedDigit()
                     .contentTransition(.numericText(value: spent))
-                    .animation(FinMotion.reveal, value: spent)
+                    .animation(FinMotion.surface, value: spent)
             }
             Capsule()
                 .fill(FinTheme.paperInset)
                 .frame(height: 8)
-                .overlay(alignment: .leading) {
-                    GeometryReader { proxy in
-                        Capsule()
-                            .fill(fillColor)
-                            .frame(
-                                width: max(
-                                    proxy.size.width * min(shownFraction, 1),
-                                    shownFraction > 0 ? 8 : 0
-                                )
-                            )
-                    }
+                .overlay {
+                    ProgressFill(fraction: shownFraction, color: fillColor, minimumWidth: 8)
                 }
-                .animation(FinMotion.reveal, value: fraction)
-                .animation(
-                    FinMotion.reveal.delay(Double(min(index, 8)) * FinMotion.stagger * 1.5),
-                    value: revealed
-                )
+                .animation(FinMotion.settle, value: fraction)
+                .animation(FinMotion.settle.delay(FinMotion.staggered(index)), value: revealed)
             if isOver {
                 Text("Over by \(CurrencyFormatter.string(spent - budget.limit))")
                     .font(.system(size: 12, weight: .semibold))
@@ -304,6 +292,6 @@ struct BudgetProgressRow: View {
             }
         }
         .padding(.vertical, 8)
-        .animation(FinMotion.swap, value: isOver)
+        .animation(FinMotion.surface, value: isOver)
     }
 }

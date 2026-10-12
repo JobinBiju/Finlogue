@@ -125,7 +125,7 @@ struct TransactionFilterView: View {
     private func segment(label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button {
             FinHaptics.selection()
-            withAnimation(.snappy(duration: 0.25)) { action() }
+            withAnimation(FinMotion.quick) { action() }
         } label: {
             Text(label)
                 .font(.system(size: 13, weight: .semibold))
@@ -204,7 +204,7 @@ struct TransactionFilterView: View {
                 .finSectionLabel()
                 .padding(.leading, 4)
             VStack(spacing: 0) {
-                Toggle("Filter by date", isOn: $filterByDate.animation(.snappy(duration: 0.25)))
+                Toggle("Filter by date", isOn: $filterByDate.animation(FinMotion.quick))
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(FinTheme.ink600)
                     .tint(FinTheme.coral)

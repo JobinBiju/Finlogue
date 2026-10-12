@@ -71,14 +71,14 @@ struct WatchQuickAddView: View {
         .overlay {
             if saved {
                 SavedCheck()
-                    .transition(BlurSwap(radius: 8, scale: 0.5).animation(FinMotion.grow))
+                    .transition(.scale(scale: 0.95).combined(with: .opacity).animation(FinMotion.surface))
             }
         }
         .allowsHitTesting(!saved)
     }
 
     private func go(to next: Step) {
-        withAnimation(FinMotion.swap) { step = next }
+        withAnimation(FinMotion.surface) { step = next }
     }
 
     // MARK: Step 1 — amount
@@ -102,7 +102,7 @@ struct WatchQuickAddView: View {
                     isHapticFeedbackEnabled: true
                 )
                 .onChange(of: crownValue) { _, newValue in
-                    withAnimation(FinMotion.select) {
+                    withAnimation(FinMotion.surface) {
                         amount = (newValue / 10).rounded() * 10
                     }
                 }
@@ -114,7 +114,7 @@ struct WatchQuickAddView: View {
                 ForEach(presets, id: \.self) { preset in
                     Button {
                         WKInterfaceDevice.current().play(.click)
-                        withAnimation(FinMotion.select) {
+                        withAnimation(FinMotion.surface) {
                             amount = preset
                             crownValue = preset
                         }
@@ -262,7 +262,7 @@ struct WatchQuickAddView: View {
         syncEngine.send(transaction: TransactionDTO(from: transaction))
         lastAccountID = account.id.uuidString
         WKInterfaceDevice.current().play(.success)
-        withAnimation(FinMotion.grow) { saved = true }
+        withAnimation(FinMotion.surface) { saved = true }
         Task {
             try? await Task.sleep(for: .milliseconds(700))
             dismiss()

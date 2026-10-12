@@ -10,15 +10,15 @@ struct HomeView: View {
     @EnvironmentObject private var store: TransactionStore
     @Environment(\.modelContext) private var context
 
-    @Query(sort: \Transaction.date, order: .reverse, animation: FinMotion.swap)
+    @Query(sort: \Transaction.date, order: .reverse, animation: FinMotion.surface)
     private var transactions: [Transaction]
     @Query(sort: \Account.createdAt) private var accounts: [Account]
     @Query private var recurringRules: [RecurringRule]
-    @Query(sort: \PendingTransaction.date, order: .reverse, animation: FinMotion.swap)
+    @Query(sort: \PendingTransaction.date, order: .reverse, animation: FinMotion.surface)
     private var pendingImports: [PendingTransaction]
 
     /// Flips once, the first time Home is on screen, to play the entrance.
-    @State private var hasEntered = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var searchText = Self.initialSearchText
     @FocusState private var searchFocused: Bool
@@ -162,8 +162,8 @@ struct HomeView: View {
             .background(FinTheme.canvas)
             .contentMargins(.bottom, 88, for: .scrollContent)
             .contentMargins(.horizontal, 24, for: .scrollContent)
-            .animation(FinMotion.swap, value: searchText)
-            .animation(FinMotion.swap, value: filter)
+            .animation(FinMotion.surface, value: searchText)
+            .animation(FinMotion.surface, value: filter)
             .scrollDismissesKeyboard(.immediately)
             // Tap anywhere outside the search pill to close the keyboard.
             .onChange(of: searchFocused) { _, focused in
@@ -173,7 +173,6 @@ struct HomeView: View {
                     dismissTap.remove()
                 }
             }
-            .onFirstTabActivation { hasEntered = true }
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showAddTransaction) {
                 TransactionEditorView()
@@ -211,7 +210,7 @@ struct HomeView: View {
                             .background(FinTheme.paper, in: Circle())
                             .shadow(color: FinTheme.shadowTint.opacity(0.06), radius: 4, x: 0, y: 2)
                     }
-                    .buttonStyle(.pressable)
+                    .buttonStyle(.pressableIcon)
 
                     Spacer()
 
@@ -237,7 +236,7 @@ struct HomeView: View {
                             .background(FinTheme.coral, in: Circle())
                             .shadow(color: FinTheme.coral.opacity(0.28), radius: 12, x: 0, y: 8)
                     }
-                    .buttonStyle(.pressable)
+                    .buttonStyle(.pressableIcon)
                 }
 
                 HStack(spacing: 8) {
@@ -269,22 +268,21 @@ struct HomeView: View {
                 } action: { frame in
                     searchPill.frame = frame
                 }
-                .finEntrance(hasEntered, index: 0)
 
                 if !isSearching {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Balance")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(FinTheme.ink400)
-                    // Counts up from zero on first appearance, then counts
-                    // between values as transactions land.
-                    CountingCurrencyText(hasEntered ? netWorth : 0)
+                    // At rest on arrival — a balance you check daily doesn't
+                    // count up — and rolls its digits when a transaction lands.
+                    Text(CurrencyFormatter.string(netWorth))
                         .font(.system(size: 40, weight: .heavy))
                         .kerning(-0.5)
                         .foregroundStyle(FinTheme.ink)
                         .monospacedDigit()
-                        .animation(FinMotion.count, value: netWorth)
-                        .animation(FinMotion.count.delay(FinMotion.stagger), value: hasEntered)
+                        .contentTransition(.numericText(value: netWorth))
+                        .animation(FinMotion.surface, value: netWorth)
                     if let trend = monthTrendPercent {
                         HStack(spacing: 6) {
                             HStack(spacing: 3) {
@@ -306,7 +304,6 @@ struct HomeView: View {
                 .padding(20)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .finCard()
-                .finEntrance(hasEntered, index: 1)
                 .blurSwapTransition()
 
                 HStack(spacing: 14) {
@@ -323,11 +320,10 @@ struct HomeView: View {
                 }
                 // Match the 14pt tile gap: the header stack's 20pt spacing minus 6.
                 .padding(.top, -6)
-                .finEntrance(hasEntered, index: 2)
                 .blurSwapTransition()
                 }
             }
-            .animation(FinMotion.swap, value: isSearching)
+            .animation(FinMotion.surface, value: isSearching)
             .textCase(nil)
             .finHeaderAligned()
             .padding(.top, 4)
@@ -356,7 +352,7 @@ struct HomeView: View {
                     .foregroundStyle(FinTheme.ink)
                     .monospacedDigit()
                     .contentTransition(.numericText(value: amount))
-                    .animation(FinMotion.reveal, value: amount)
+                    .animation(FinMotion.surface, value: amount)
                     .minimumScaleFactor(0.7)
                     .lineLimit(1)
             }
@@ -404,7 +400,6 @@ struct HomeView: View {
                     .monospacedDigit()
                 }
                 .padding(.vertical, 6)
-                .finEntrance(hasEntered, index: 3)
             }
             .listRowBackground(FinTheme.paper)
         }
@@ -417,7 +412,6 @@ struct HomeView: View {
                 Text("Accounts")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(FinTheme.ink)
-                    .finEntrance(hasEntered, index: 3)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
                         // Banks first, then cards, then others.
@@ -425,12 +419,12 @@ struct HomeView: View {
                                 id: \.element.id) { index, account in
                             AccountCardView(account: account, paletteIndex: index)
                                 // Cards easing out of the viewport recede slightly.
+                                // The screen's one scroll-linked effect.
                                 .scrollTransition(axis: .horizontal) { card, phase in
                                     card
-                                        .scaleEffect(phase.isIdentity ? 1 : 0.94)
+                                        .scaleEffect(phase.isIdentity || reduceMotion ? 1 : 0.95)
                                         .opacity(phase.isIdentity ? 1 : 0.75)
                                 }
-                                .finEntrance(hasEntered, index: 4 + min(index, 4))
                         }
                     }
                     .scrollTargetLayout()
@@ -490,7 +484,6 @@ struct HomeView: View {
                     }
                 }
                 .padding(.vertical, 4)
-                .finEntrance(hasEntered, index: 6)
                 .listRowBackground(FinTheme.paper)
                 .listRowSeparatorTint(FinTheme.lineSoft)
             }
@@ -501,7 +494,6 @@ struct HomeView: View {
                 .textCase(nil)
                 .finHeaderAligned()
                 .padding(.bottom, 4)
-                .finEntrance(hasEntered, index: 6)
         }
     }
 
@@ -527,7 +519,6 @@ struct HomeView: View {
                 Section {
                     ForEach(group.items) { transaction in
                         TransactionRowView(transaction: transaction)
-                            .finEntrance(hasEntered, index: 7)
                             .listRowBackground(FinTheme.paper)
                             .listRowSeparatorTint(FinTheme.lineSoft)
                             .contentShape(Rectangle())
@@ -549,7 +540,6 @@ struct HomeView: View {
                     }
                 } header: {
                     SectionHeader(sectionTitle(for: group.day))
-                        .finEntrance(hasEntered, index: 7)
                 }
             }
         }

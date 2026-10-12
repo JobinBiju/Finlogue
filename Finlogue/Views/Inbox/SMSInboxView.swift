@@ -14,7 +14,7 @@ struct SMSInboxView: View {
     @EnvironmentObject private var tabBarVisibility: TabBarVisibility
     @Environment(\.dismiss) private var dismiss
 
-    @Query(sort: \PendingTransaction.date, order: .reverse, animation: FinMotion.shrink)
+    @Query(sort: \PendingTransaction.date, order: .reverse, animation: FinMotion.surface)
     private var pending: [PendingTransaction]
     @Query(sort: \Account.createdAt) private var accounts: [Account]
     @Query(sort: \Category.sortOrder) private var categories: [Category]
@@ -43,7 +43,7 @@ struct SMSInboxView: View {
                         categories: categories,
                         isExpanded: expandedID == item.id,
                         onToggle: {
-                            withAnimation(FinMotion.grow) {
+                            withAnimation(FinMotion.surface) {
                                 expandedID = expandedID == item.id ? nil : item.id
                             }
                         },
@@ -146,7 +146,7 @@ struct SMSInboxView: View {
         }
         let bookedName = item.name
         let bookedAmount = CurrencyFormatter.string(item.amount)
-        withAnimation(FinMotion.shrink) {
+        withAnimation(FinMotion.quick) {
             SMSImportService.confirm(
                 item, store: store, overrideAccount: account, overrideCategory: category
             )
@@ -164,7 +164,7 @@ struct SMSInboxView: View {
     }
 
     private func discard(_ item: PendingTransaction) {
-        withAnimation(FinMotion.shrink) {
+        withAnimation(FinMotion.quick) {
             SMSImportService.discard(item, store: store)
         }
         FinHaptics.tap()

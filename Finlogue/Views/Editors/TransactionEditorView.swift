@@ -230,7 +230,7 @@ struct TransactionEditorView: View {
             selection: type,
             onSelect: { candidate in
                 FinHaptics.selection()
-                withAnimation(FinMotion.select) {
+                withAnimation(FinMotion.surface) {
                     type = candidate
                 }
             },
@@ -312,7 +312,7 @@ struct TransactionEditorView: View {
                 .blurSwapTransition()
             }
         }
-        .animation(FinMotion.swap, value: nameSuggestions.map(\.id))
+        .animation(FinMotion.surface, value: nameSuggestions.map(\.id))
     }
 
     // MARK: Category chips
@@ -327,7 +327,7 @@ struct TransactionEditorView: View {
                     let isSelected = selectedCategoryID == category.id
                     Button {
                         FinHaptics.selection()
-                        withAnimation(FinMotion.select) {
+                        withAnimation(FinMotion.surface) {
                             selectedCategoryID = isSelected ? nil : category.id
                         }
                         if name.isEmpty { name = category.name }

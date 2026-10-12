@@ -29,12 +29,9 @@ struct InsightsView: View {
     @State private var periodMode: PeriodMode = .billing
 
     /// 0 → 1 the first time Insights is on screen: the donut sweeps round and
-    /// the total counts up with it. Switching month or period afterwards uses
-    /// the plain crossfades and rolling digits below, not this entrance.
+    /// the bars rise. Switching month or period afterwards uses the plain
+    /// crossfades and rolling digits below, not this entrance.
     @State private var sweep: Double = 0
-    /// Set once the entrance count-up has landed; the total then rolls its
-    /// digits on changes instead of counting.
-    @State private var hasCounted = false
     /// The trend line draws itself once; later periods crossfade in drawn.
     @State private var trendDrawn = false
 
@@ -140,11 +137,7 @@ struct InsightsView: View {
             .contentMargins(.horizontal, 24, for: .scrollContent)
             .toolbar(.hidden, for: .navigationBar)
             .onFirstTabActivation {
-                withAnimation(FinMotion.reveal) { sweep = 1 }
-                Task {
-                    try? await Task.sleep(for: .seconds(1))
-                    hasCounted = true
-                }
+                withAnimation(FinMotion.settle) { sweep = 1 }
             }
         }
     }
@@ -178,7 +171,7 @@ struct InsightsView: View {
                         .foregroundStyle(FinTheme.ink)
                         .monospacedDigit()
                         .contentTransition(.numericText())
-                        .animation(.smooth(duration: 0.4), value: selectedMonth)
+                        .animation(FinMotion.surface, value: selectedMonth)
                         .frame(minWidth: 68)
                     Button {
                         if let next = calendar.date(byAdding: .month, value: 1, to: selectedMonth) {
@@ -216,7 +209,7 @@ struct InsightsView: View {
                     spacing: 4,
                     onSelect: { mode in
                         FinHaptics.selection()
-                        withAnimation(.smooth(duration: 0.35)) {
+                        withAnimation(FinMotion.move) {
                             periodMode = mode
                         }
                     },
@@ -313,23 +306,17 @@ struct InsightsView: View {
                     .foregroundStyle(Color.clear)
                 }
                 .frame(height: 190)
-                .animation(.smooth(duration: 0.5), value: periodKey)
+                .animation(FinMotion.surface, value: periodKey)
                 .chartBackground { _ in
                     VStack(spacing: 2) {
                         Text("Spent")
                             .font(.system(size: 12, weight: .medium))
                             .foregroundStyle(FinTheme.ink400)
-                        Group {
-                            if hasCounted {
-                                Text(CurrencyFormatter.string(spent))
-                                    .contentTransition(.numericText())
-                                    .animation(.smooth(duration: 0.5), value: spent)
-                            } else {
-                                CountingCurrencyText(spent * sweep)
-                                    .animation(FinMotion.count, value: spent)
-                                    .animation(FinMotion.count, value: sweep)
-                            }
-                        }
+                        // The figure is at rest while the ring sweeps; it rolls
+                        // when the period changes rather than counting up.
+                        Text(CurrencyFormatter.string(spent))
+                            .contentTransition(.numericText(value: spent))
+                            .animation(FinMotion.surface, value: spent)
                         .font(.system(size: 24, weight: .heavy))
                         .kerning(-0.5)
                         .foregroundStyle(FinTheme.ink)
@@ -375,11 +362,11 @@ struct InsightsView: View {
                                 .frame(width: 36, alignment: .trailing)
                                 .contentTransition(.numericText())
                         }
-                        .finEntrance(sweep > 0, index: 2 + min(index, 6))
+                        .finEntrance(sweep > 0, index: 2 + index)
                         .transition(.opacity)
                     }
                 }
-                .animation(.smooth(duration: 0.5), value: periodKey)
+                .animation(FinMotion.surface, value: periodKey)
             }
             .padding(20)
             .listRowInsets(EdgeInsets())
@@ -402,7 +389,7 @@ struct InsightsView: View {
                         .id(periodKey)
                         .transition(.opacity)
                 }
-                .animation(.easeInOut(duration: 0.4), value: periodKey)
+                .animation(FinMotion.fade, value: periodKey)
             }
             .padding(20)
             .listRowInsets(EdgeInsets())
@@ -465,7 +452,7 @@ struct InsightsView: View {
                     .id(selectedMonth)
                     .transition(.opacity)
                 }
-                .animation(.easeInOut(duration: 0.4), value: selectedMonth)
+                .animation(FinMotion.fade, value: selectedMonth)
 
                 HStack(spacing: 16) {
                     legendChip(color: FinTheme.green, label: "Income")
@@ -584,7 +571,7 @@ private struct SpendingTrendChart: View {
         .onFirstTabActivation(after: .milliseconds(160)) {
             guard progress == 0 else { return }
             hasDrawn = true
-            withAnimation(FinMotion.reveal) { progress = 1 }
+            withAnimation(FinMotion.draw) { progress = 1 }
         }
     }
 
@@ -602,6 +589,6 @@ private struct SpendingTrendChart: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background(FinTheme.ink, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .animation(FinMotion.press, value: point.day)
+        .animation(FinMotion.fast, value: point.day)
     }
 }

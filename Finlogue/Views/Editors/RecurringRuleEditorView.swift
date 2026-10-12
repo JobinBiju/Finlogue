@@ -211,7 +211,7 @@ struct RecurringRuleEditorView: View {
             ForEach(TransactionType.allCases) { candidate in
                 Button {
                     FinHaptics.selection()
-                    withAnimation(.snappy(duration: 0.25)) {
+                    withAnimation(FinMotion.quick) {
                         type = candidate
                     }
                 } label: {

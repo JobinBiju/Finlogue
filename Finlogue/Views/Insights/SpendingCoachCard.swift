@@ -124,9 +124,9 @@ struct SpendingCoachCard: View {
             footer
         }
         .padding(20)
-        .animation(FinMotion.swap, value: digest.fingerprint)
-        .animation(FinMotion.swap, value: coach.review)
-        .animation(FinMotion.swap, value: coach.isThinking)
+        .animation(FinMotion.surface, value: digest.fingerprint)
+        .animation(FinMotion.surface, value: coach.review)
+        .animation(FinMotion.surface, value: coach.isThinking)
         .task(id: "\(digest.fingerprint)|\(isTabActive)") {
             guard isTabActive else { return }
             await coach.refresh(for: digest)
@@ -158,7 +158,7 @@ struct SpendingCoachCard: View {
                         .frame(width: 30, height: 30)
                         .background(FinTheme.paperInset, in: Circle())
                 }
-                .buttonStyle(.pressable)
+                .buttonStyle(.pressableIcon)
                 .disabled(coach.isThinking)
                 .opacity(coach.isThinking ? 0.4 : 1)
                 .accessibilityLabel("Rewrite review")

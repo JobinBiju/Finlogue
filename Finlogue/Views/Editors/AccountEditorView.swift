@@ -120,7 +120,7 @@ struct AccountEditorView: View {
             ForEach(AccountType.allCases) { candidate in
                 Button {
                     FinHaptics.selection()
-                    withAnimation(.snappy(duration: 0.25)) {
+                    withAnimation(FinMotion.quick) {
                         type = candidate
                     }
                 } label: {
@@ -243,7 +243,7 @@ struct AccountEditorView: View {
     private func limitSegment(title: String, selected: Bool, action: @escaping () -> Void) -> some View {
         Button {
             FinHaptics.selection()
-            withAnimation(.snappy(duration: 0.2)) { action() }
+            withAnimation(FinMotion.quick) { action() }
         } label: {
             Text(title)
                 .font(.system(size: 13, weight: .semibold))

@@ -45,12 +45,12 @@ final class ToastCenter: ObservableObject {
                 [title, detail].compactMap { $0 }.joined(separator: ", ")
             ).post()
             if !wasShowing {
-                withAnimation(FinMotion.grow) { self.phase = .dot }
+                withAnimation(FinMotion.surface) { self.phase = .dot }
                 // Let the check land before the pill stretches out of it.
                 try? await Task.sleep(for: .milliseconds(320))
                 guard !Task.isCancelled else { return }
             }
-            withAnimation(FinMotion.grow) { self.phase = .expanded }
+            withAnimation(FinMotion.surface) { self.phase = .expanded }
             try? await Task.sleep(for: .seconds(2.2))
             guard !Task.isCancelled else { return }
             await collapse()
@@ -63,10 +63,10 @@ final class ToastCenter: ObservableObject {
     }
 
     private func collapse() async {
-        withAnimation(FinMotion.shrink) { self.phase = .dot }
+        withAnimation(FinMotion.quick) { self.phase = .dot }
         try? await Task.sleep(for: .milliseconds(240))
         guard !Task.isCancelled else { return }
-        withAnimation(FinMotion.shrink) { self.phase = .hidden }
+        withAnimation(FinMotion.quick) { self.phase = .hidden }
     }
 }
 
@@ -79,8 +79,8 @@ struct FinToastView: View {
                 pill(toast)
                     .transition(
                         AsymmetricTransition(
-                            insertion: DotTransition().animation(FinMotion.grow),
-                            removal: DotTransition().animation(FinMotion.shrink)
+                            insertion: DotTransition().animation(FinMotion.surface),
+                            removal: DotTransition().animation(FinMotion.quick)
                         )
                     )
             }
@@ -133,13 +133,15 @@ struct FinToastView: View {
     }
 }
 
-/// The dot drops in from under the Dynamic Island, growing out of a blur.
+/// The dot drops its own height from under the Dynamic Island and fades in,
+/// and leaves back up the same way. Under Reduce Motion it only fades.
 private struct DotTransition: Transition {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     func body(content: Content, phase: TransitionPhase) -> some View {
         content
-            .scaleEffect(phase.isIdentity ? 1 : 0.4)
-            .blur(radius: phase.isIdentity ? 0 : 6)
+            .scaleEffect(phase.isIdentity || reduceMotion ? 1 : 0.95)
             .opacity(phase.isIdentity ? 1 : 0)
-            .offset(y: phase.isIdentity ? 0 : -14)
+            .offset(y: phase.isIdentity || reduceMotion ? 0 : -36)
     }
 }

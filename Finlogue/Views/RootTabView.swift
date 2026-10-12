@@ -47,7 +47,7 @@ struct RootTabView: View {
             .preferredColorScheme(themeManager.theme.isDark ? .dark : .light)
             // A tapped spending alert opens Insights.
             .onReceive(notificationRouter.$requestedTab.compactMap { $0 }) { tab in
-                withAnimation(FinMotion.select) { selection = tab }
+                withAnimation(FinMotion.move) { selection = tab }
                 notificationRouter.requestedTab = nil
             }
             #if DEBUG
@@ -65,7 +65,7 @@ struct RootTabView: View {
         ToastCenter.shared.show("Added", detail: "Swiggy −₹340")
         await wait(3.5)
         for tab in [1, 2, 3, 0, 2, 1, 0] {
-            withAnimation(FinMotion.select) { selection = tab }
+            withAnimation(FinMotion.move) { selection = tab }
             await wait(tab == 0 ? 1.2 : 2.2)
         }
     }
@@ -94,7 +94,7 @@ struct RootTabView: View {
             // keyboard covers the bar rather than pushing it over the content.
             .ignoresSafeArea(.keyboard, edges: .bottom)
         }
-        .animation(FinMotion.select, value: tabBarVisibility.isHidden)
+        .animation(FinMotion.surface, value: tabBarVisibility.isHidden)
         .overlay(alignment: .top) {
             FinToastView(center: .shared)
                 .padding(.top, 4)
@@ -108,11 +108,10 @@ struct RootTabView: View {
         content()
             .environment(\.isTabActive, isSelected)
             // Scoped: only the crossfade itself animates, nothing else that
-            // happens to change in the same update as a tab switch.
-            .animation(FinMotion.swap) { view in
-                view
-                    .opacity(isSelected ? 1 : 0)
-                    .scaleEffect(isSelected ? 1 : 0.98)
+            // happens to change in the same update as a tab switch. Tabs
+            // change tens of times a day, so it's a quick fade and no more.
+            .animation(FinMotion.fast) { view in
+                view.opacity(isSelected ? 1 : 0)
             }
             .allowsHitTesting(isSelected)
             .accessibilityHidden(!isSelected)
@@ -141,7 +140,7 @@ private struct FinTabBar: View {
                 guard index != selection else { return }
                 FinHaptics.selection()
                 bounces[index] += 1
-                withAnimation(FinMotion.select) {
+                withAnimation(FinMotion.move) {
                     selection = index
                 }
             },

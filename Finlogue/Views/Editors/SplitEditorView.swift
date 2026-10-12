@@ -62,7 +62,7 @@ struct SplitEditorView: View {
             HStack {
                 Button("Clear") {
                     FinHaptics.tap()
-                    withAnimation(.snappy(duration: 0.2)) { splits = [] }
+                    withAnimation(FinMotion.quick) { splits = [] }
                 }
                 .font(.system(size: 16, weight: .medium))
                 .foregroundStyle(splits.isEmpty ? FinTheme.ink400 : FinTheme.coral)
@@ -176,7 +176,7 @@ struct SplitEditorView: View {
                         }
                         Button {
                             FinHaptics.tap()
-                            withAnimation(.snappy(duration: 0.2)) {
+                            withAnimation(FinMotion.quick) {
                                 splits.removeAll { $0.id == draft.id }
                             }
                         } label: {
@@ -231,7 +231,7 @@ struct SplitEditorView: View {
 
     /// Adds a row for a person; you enter their exact amount.
     private func addSplit(for person: Person) {
-        withAnimation(.snappy(duration: 0.2)) {
+        withAnimation(FinMotion.quick) {
             splits.append(SplitDraft(personID: person.id, amount: 0))
         }
     }

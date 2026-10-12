@@ -83,7 +83,7 @@ struct AccountCardView: View {
                     .foregroundStyle(palette.text)
                     .monospacedDigit()
                     .contentTransition(.numericText(value: account.spent))
-                    .animation(FinMotion.reveal, value: account.spent)
+                    .animation(FinMotion.surface, value: account.spent)
                     .minimumScaleFactor(0.7)
                     .lineLimit(1)
                 // Grouped cards share a limit, so the per-card gauge/available
@@ -92,16 +92,12 @@ struct AccountCardView: View {
                     Capsule()
                         .fill(palette.chipBackground)
                         .frame(height: 6)
-                        .overlay(alignment: .leading) {
-                            GeometryReader { proxy in
-                                Capsule()
-                                    .fill(FinTheme.amber)
-                                    .frame(width: proxy.size.width * min(account.spent / limit, 1))
-                            }
+                        .overlay {
+                            ProgressFill(fraction: account.spent / limit, color: FinTheme.amber)
                         }
                         .padding(.top, 8)
                         .padding(.bottom, 6)
-                        .animation(FinMotion.reveal, value: account.spent)
+                        .animation(FinMotion.settle, value: account.spent)
                 }
                 if let billed = account.billedOutstanding,
                    let unbilled = account.unbilledOutstanding {
@@ -126,7 +122,7 @@ struct AccountCardView: View {
                     .foregroundStyle(palette.text)
                     .monospacedDigit()
                     .contentTransition(.numericText(value: account.currentBalance))
-                    .animation(FinMotion.reveal, value: account.currentBalance)
+                    .animation(FinMotion.surface, value: account.currentBalance)
                     .minimumScaleFactor(0.7)
                     .lineLimit(1)
                 Text("Balance")
