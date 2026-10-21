@@ -38,7 +38,7 @@ struct SMSInboxView: View {
             } else {
                 ForEach(pending) { item in
                     PendingTransactionRow(
-                        pending: item,
+                        pending: PendingSnapshot(item),
                         accounts: accounts,
                         categories: categories,
                         isExpanded: expandedID == item.id,
@@ -146,11 +146,13 @@ struct SMSInboxView: View {
         }
         let bookedName = item.name
         let bookedAmount = CurrencyFormatter.string(item.amount)
-        withAnimation(FinMotion.quick) {
-            SMSImportService.confirm(
-                item, store: store, overrideAccount: account, overrideCategory: category
-            )
-        }
+        // Not in withAnimation: the new transaction reaches the Insights charts
+        // (always mounted behind this tab), and Swift Charts traps on a NaN
+        // while animating them to the new data. The row still animates out via
+        // the @Query animation above.
+        SMSImportService.confirm(
+            item, store: store, overrideAccount: account, overrideCategory: category
+        )
         FinHaptics.success()
         ToastCenter.shared.show("Added", detail: "\(bookedName) \(bookedAmount)")
     }
@@ -173,8 +175,38 @@ struct SMSInboxView: View {
 
 // MARK: - Row
 
+/// Plain-value copy of a `PendingTransaction` for the row to render from.
+/// Confirming or ignoring deletes the model, but the row keeps being drawn
+/// through its removal animation (and an open category menu can re-render it) —
+/// reading a deleted SwiftData model there traps and kills the app.
+private struct PendingSnapshot {
+    let id: UUID
+    let name: String
+    let type: TransactionType
+    let amount: Double
+    let date: Date
+    let rawText: String
+    let maskedLast4: String?
+    let needsAccountChoice: Bool
+    let resolvedAccountID: UUID?
+    let suggestedCategoryID: UUID?
+
+    init(_ pending: PendingTransaction) {
+        id = pending.id
+        name = pending.name
+        type = pending.type
+        amount = pending.amount
+        date = pending.date
+        rawText = pending.rawText
+        maskedLast4 = pending.maskedLast4
+        needsAccountChoice = pending.needsAccountChoice
+        resolvedAccountID = pending.resolvedAccountID
+        suggestedCategoryID = pending.suggestedCategoryID
+    }
+}
+
 private struct PendingTransactionRow: View {
-    let pending: PendingTransaction
+    let pending: PendingSnapshot
     let accounts: [Account]
     let categories: [Category]
     let isExpanded: Bool
