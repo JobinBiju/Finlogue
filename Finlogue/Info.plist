@@ -4,5 +4,7 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Finlogue uses Face ID to unlock the app when App Lock is on.</string>
 </dict>
 </plist>

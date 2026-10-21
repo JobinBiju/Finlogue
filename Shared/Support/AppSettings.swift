@@ -26,12 +26,20 @@ enum AppSettings {
     static let spendingAlertsSentKey = "spendingAlertsSent"
     static let coachReviewsKey = "spendingCoachReviews"
 
+    // App lock: Face ID (or the device passcode) on every return. Off by
+    // default — see AppLock.
+    static let appLockKey = "appLockEnabled"
+
     static var currencyCode: String {
         UserDefaults.standard.string(forKey: currencyCodeKey) ?? defaultCurrencyCode
     }
 
     static var smsAutoConfirmEnabled: Bool {
         UserDefaults.standard.bool(forKey: smsAutoConfirmKey)
+    }
+
+    static var appLockEnabled: Bool {
+        UserDefaults.standard.bool(forKey: appLockKey)
     }
 
     /// Curated list for the Settings currency picker.

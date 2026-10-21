@@ -21,6 +21,8 @@ struct SettingsView: View {
     @AppStorage(AppSettings.currencyCodeKey) private var currencyCode = AppSettings.defaultCurrencyCode
     @AppStorage(AppSettings.spendingAlertsKey) private var spendingAlertsEnabled = false
     @State private var showNotificationsDenied = false
+    @AppStorage(AppSettings.appLockKey) private var appLockEnabled = false
+    @State private var showAppLockUnavailable = false
 
     @State private var editingRule: RecurringRule?
     @State private var showAddRule = Self.launchIntoAddRule
@@ -91,6 +93,7 @@ struct SettingsView: View {
                 recurringSection
                 coachSection
                 appearanceSection
+                securitySection
                 dataSection
                 syncSection
             }
@@ -234,6 +237,61 @@ struct SettingsView: View {
         case .turnedOff: "Off — turn it on in Settings › Apple Intelligence & Siri"
         case .preparing: "Downloading the on-device model…"
         case .unsupported: "Not available here — you'll still get the numbers and alerts"
+        }
+    }
+
+    // MARK: Security
+
+    private var securitySection: some View {
+        let biometry = AppLock.biometry
+        return Section {
+            Toggle(isOn: Binding(
+                get: { appLockEnabled },
+                set: { isOn in
+                    FinHaptics.selection()
+                    // Confirm both ways: turning it on proves unlocking works
+                    // before the user can get locked out, and turning it off
+                    // shouldn't be possible for whoever picks up the phone.
+                    Task {
+                        let reason = isOn ? "Turn on App Lock" : "Turn off App Lock"
+                        switch await AppLock.shared.authenticate(reason: reason) {
+                        case .success: appLockEnabled = isOn
+                        case .unavailable: showAppLockUnavailable = true
+                        case .failed: break
+                        }
+                    }
+                }
+            )) {
+                HStack(spacing: 12) {
+                    Image(systemName: biometry.symbol)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(FinTheme.ink600)
+                        .frame(width: 34, height: 34)
+                        .background(FinTheme.paperInset, in: Circle())
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("App Lock")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(FinTheme.ink)
+                        Text("Ask for \(biometry.name) when you open Finlogue")
+                            .font(.system(size: 12))
+                            .foregroundStyle(FinTheme.ink400)
+                    }
+                }
+            }
+            .tint(FinTheme.coral)
+            .padding(.vertical, 4)
+            .listRowBackground(FinTheme.paper)
+        } header: {
+            SectionHeader("Security")
+        } footer: {
+            Text("Finlogue locks whenever you leave it. Your device passcode works if \(biometry.name) doesn't.")
+                .font(.system(size: 12))
+                .foregroundStyle(FinTheme.ink400)
+        }
+        .alert("Set a passcode first", isPresented: $showAppLockUnavailable) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("App Lock needs a device passcode. Add one in Settings › Face ID & Passcode.")
         }
     }
 

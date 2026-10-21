@@ -12,6 +12,7 @@ struct FinlogueApp: App {
 
     let container: ModelContainer
     @StateObject private var store: TransactionStore
+    @ObservedObject private var appLock = AppLock.shared
 
     init() {
         // Shared with the SMS-import App Intent, which runs headless in this
@@ -28,9 +29,17 @@ struct FinlogueApp: App {
             RootTabView()
                 .environmentObject(store)
                 .fontDesign(.rounded)
+                // AppLock's cover window only arrives with the first phase
+                // change; this keeps a cold launch from flashing balances.
+                .overlay {
+                    if appLock.isLocked {
+                        FinTheme.canvas.ignoresSafeArea()
+                    }
+                }
         }
         .modelContainer(container)
         .onChange(of: scenePhase) { _, phase in
+            appLock.scenePhaseChanged(phase)
             if phase == .active {
                 store.onAppBecameActive()
             }
