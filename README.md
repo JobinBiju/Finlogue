@@ -132,6 +132,12 @@ Finlogue/
 
 ---
 
+## Inspired by Finlogue
+
+- **[Paisa](https://github.com/SuvarneshKM/paisa)** by [SuvarneshKM](https://github.com/SuvarneshKM) is a native Android take on the same idea, built with Kotlin and Jetpack Compose. It does local-first tracking, detects bank SMS, and makes categorising quick.
+
+---
+
 ## License
 
 This project is licensed under the GNU General Public License v3.0 (GPL-3.0). See the LICENSE file for details.
