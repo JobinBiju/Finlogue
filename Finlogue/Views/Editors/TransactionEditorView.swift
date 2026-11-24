@@ -29,7 +29,7 @@ struct TransactionEditorView: View {
     @State private var selectedAccountID: UUID?
     @State private var selectedToAccountID: UUID?
     @State private var selectedCategoryID: UUID?
-    @State private var splitDrafts: [SplitDraft] = []
+    @State private var splitPlan = SplitPlan()
     @State private var showSplitEditor = false
 
     @FocusState private var amountFocused: Bool
@@ -115,7 +115,7 @@ struct TransactionEditorView: View {
 
     /// Sum of friends' shares currently entered.
     private var othersShareDraft: Double {
-        splitDrafts.reduce(0) { $0 + max(0, $1.amount) }
+        splitPlan.amounts(total: splitTotal)?.dropFirst().reduce(0, +) ?? 0
     }
 
     private var myShareDraft: Double { max(0, splitTotal - othersShareDraft) }
@@ -145,7 +145,8 @@ struct TransactionEditorView: View {
     }
 
     private var canSave: Bool {
-        guard let amount, amount > 0 else { return false }
+        guard let amount, amount.isFinite, amount > 0 else { return false }
+        if showsSplit, splitPlan.amounts(total: splitTotal) == nil { return false }
         guard !name.trimmingCharacters(in: .whitespaces).isEmpty, selectedAccountID != nil else {
             return false
         }
@@ -205,7 +206,7 @@ struct TransactionEditorView: View {
         .background(FinTheme.canvas)
         .fontDesign(.rounded)
         .sheet(isPresented: $showSplitEditor) {
-            SplitEditorView(splits: $splitDrafts, total: splitTotal)
+            SplitEditorView(plan: $splitPlan, total: splitTotal)
         }
         .onAppear(perform: populate)
         .onChange(of: type) { _, newType in
@@ -453,9 +454,9 @@ struct TransactionEditorView: View {
 
     /// Right-hand summary on the Split row.
     private var splitSummary: String {
-        guard !splitDrafts.isEmpty else { return "Just me" }
-        let count = splitDrafts.count
-        return "\(count) \(count == 1 ? "person" : "people") · you \(CurrencyFormatter.string(myShareDraft))"
+        guard !splitPlan.participants.isEmpty else { return "Just me" }
+        guard splitPlan.amounts(total: splitTotal) != nil else { return "Check split amounts" }
+        return "\(splitPlan.method.label) · you \(CurrencyFormatter.string(myShareDraft))"
     }
 
     @ViewBuilder
@@ -508,10 +509,13 @@ struct TransactionEditorView: View {
         selectedAccountID = transaction.account?.id
         selectedToAccountID = transaction.toAccount?.id
         selectedCategoryID = transaction.category?.id
-        splitDrafts = (transaction.splits ?? []).compactMap { split in
-            guard let personID = split.person?.id else { return nil }
-            return SplitDraft(personID: personID, amount: split.shareAmount)
-        }
+        splitPlan = SplitPlan(
+            participants: (transaction.splits ?? []).compactMap { split in
+                guard let personID = split.person?.id else { return nil }
+                return SplitDraft(personID: personID, amount: split.shareAmount)
+            },
+            settings: transaction.splitSettings
+        )
     }
 
     private func dismissKeyboard() {
@@ -522,14 +526,14 @@ struct TransactionEditorView: View {
     }
 
     private func save() {
-        guard let amount else { return }
+        guard canSave, let amount else { return }
         let account = accounts.first { $0.id == selectedAccountID }
         let toAccount = accounts.first { $0.id == selectedToAccountID }
         let category = categories.first { $0.id == selectedCategoryID }
         let charges = showsCharges ? chargesValue : 0
         let splits: [TransactionStore.SplitShare] = showsSplit
-            ? splitDrafts.compactMap { draft in
-                guard draft.amount > 0, let person = people.first(where: { $0.id == draft.personID })
+            ? (splitPlan.resolved(total: splitTotal) ?? []).compactMap { draft in
+                guard let person = people.first(where: { $0.id == draft.personID })
                 else { return nil }
                 return (person: person, amount: draft.amount)
             }
@@ -541,14 +545,16 @@ struct TransactionEditorView: View {
                 transaction, type: type, name: name.trimmingCharacters(in: .whitespaces),
                 amount: amount, charges: charges, date: date,
                 note: trimmedNote.isEmpty ? nil : trimmedNote,
-                account: account, toAccount: toAccount, category: category, splits: splits
+                account: account, toAccount: toAccount, category: category, splits: splits,
+                splitSettings: showsSplit ? splitPlan.settings : SplitSettings()
             )
         } else {
             store.addTransaction(
                 type: type, name: name.trimmingCharacters(in: .whitespaces),
                 amount: amount, charges: charges, date: date,
                 note: trimmedNote.isEmpty ? nil : trimmedNote,
-                account: account, toAccount: toAccount, category: category, splits: splits
+                account: account, toAccount: toAccount, category: category, splits: splits,
+                splitSettings: showsSplit ? splitPlan.settings : SplitSettings()
             )
         }
         if let account {

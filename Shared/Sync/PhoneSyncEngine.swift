@@ -103,6 +103,7 @@ final class PhoneSyncEngine: NSObject, ObservableObject {
                 updatedAt: dto.updatedAt
             )
             context.insert(transaction)
+            transaction.splitSettingsData = dto.splitSettings?.data
             try context.save()
             pushSnapshot()
             SpendingAlerts.shared.scheduleCheck(context: context)

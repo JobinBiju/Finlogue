@@ -15,6 +15,8 @@ struct SettlementEditorView: View {
     let person: Person
     /// The settlement being edited; nil records a new one.
     var settlement: Transaction?
+    /// A dedicated entry point for lending or money spent on their behalf.
+    var lending = false
 
     @EnvironmentObject private var store: TransactionStore
     @Environment(\.dismiss) private var dismiss
@@ -26,17 +28,20 @@ struct SettlementEditorView: View {
     @State private var date = Date.now
     @State private var note = ""
     @State private var selectedAccountID: UUID?
+    @State private var isPreviousDebt = false
     @FocusState private var amountFocused: Bool
 
     @AppStorage(AppSettings.lastAccountIDKey) private var lastAccountID = ""
 
     init(
-        person: Person, direction: SettlementDirection = .received, settlement: Transaction? = nil
+        person: Person, direction: SettlementDirection = .received, settlement: Transaction? = nil,
+        lending: Bool = false
     ) {
         self.person = person
         self.settlement = settlement
+        self.lending = lending
         _direction = State(
-            initialValue: settlement.map { $0.type == .income ? .received : .paid } ?? direction
+            initialValue: settlement.map { $0.type == .income ? .received : .paid } ?? (lending ? .paid : direction)
         )
     }
 
@@ -50,7 +55,13 @@ struct SettlementEditorView: View {
     }
 
     private var canSave: Bool {
-        (amount ?? 0) > 0 && selectedAccountID != nil
+        guard let amount, amount.isFinite, amount > 0 else { return false }
+        return isPreviousDebt || accounts.contains { $0.id == selectedAccountID }
+    }
+
+    private var title: String {
+        if settlement != nil { return "Edit settlement" }
+        return lending ? "I paid for them" : "Settle up"
     }
 
     var body: some View {
@@ -66,7 +77,7 @@ struct SettlementEditorView: View {
                     .font(.system(size: 16, weight: .medium))
                     .foregroundStyle(FinTheme.ink600)
                 Spacer()
-                Text(settlement == nil ? "Settle up" : "Edit settlement")
+                Text(title)
                     .font(.system(size: 16, weight: .bold))
                     .foregroundStyle(FinTheme.ink)
                 Spacer()
@@ -82,13 +93,15 @@ struct SettlementEditorView: View {
 
             ScrollView {
                 VStack(spacing: 24) {
-                    Picker("Direction", selection: $direction) {
-                        Text("\(person.name) paid").tag(SettlementDirection.received)
-                        Text("You paid").tag(SettlementDirection.paid)
+                    if !lending {
+                        Picker("Direction", selection: $direction) {
+                            Text("\(person.name) paid").tag(SettlementDirection.received)
+                            Text("You paid").tag(SettlementDirection.paid)
+                        }
+                        .pickerStyle(.segmented)
                     }
-                    .pickerStyle(.segmented)
 
-                    Text(direction == .received ? "From \(person.name)" : "To \(person.name)")
+                    Text(lending ? "Money \(person.name) owes you" : (direction == .received ? "From \(person.name)" : "To \(person.name)"))
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(FinTheme.ink400)
 
@@ -121,6 +134,13 @@ struct SettlementEditorView: View {
                     }
 
                     detailsCard
+
+                    if lending {
+                        Text("Adds to what \(person.name) owes you. Repayments can be recorded with Settle up. This doesn't count as your spending.")
+                            .font(.system(size: 13))
+                            .foregroundStyle(FinTheme.ink400)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 24)
@@ -138,20 +158,41 @@ struct SettlementEditorView: View {
                 .finSectionLabel()
                 .padding(.leading, 4)
             VStack(spacing: 0) {
-                detailRow(label: direction == .received ? "Into account" : "From account") {
-                    Menu {
-                        ForEach(accounts.grouped, id: \.group) { entry in
-                            Section(entry.group.rawValue) {
-                                ForEach(entry.accounts) { account in
-                                    Button(account.name) { selectedAccountID = account.id }
-                                }
-                            }
-                        }
-                    } label: {
-                        detailValue(accounts.first { $0.id == selectedAccountID }?.name ?? "Select")
+                Toggle(isOn: $isPreviousDebt) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Previous debt")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(FinTheme.ink600)
+                        Text("Record an existing balance without changing an account.")
+                            .font(.system(size: 12))
+                            .foregroundStyle(FinTheme.ink400)
                     }
                 }
+                .tint(FinTheme.coral)
+                .padding(.vertical, 12)
                 Divider().overlay(FinTheme.lineSoft)
+                if !isPreviousDebt {
+                    detailRow(label: direction == .received ? "Into account" : "From account") {
+                        Menu {
+                            ForEach(accounts.grouped, id: \.group) { entry in
+                                Section(entry.group.rawValue) {
+                                    ForEach(entry.accounts) { account in
+                                        Button(account.name) { selectedAccountID = account.id }
+                                    }
+                                }
+                            }
+                        } label: {
+                            detailValue(accounts.first { $0.id == selectedAccountID }?.name ?? "Select")
+                        }
+                    }
+                    Divider().overlay(FinTheme.lineSoft)
+                    if accounts.isEmpty {
+                        Text("Add an account in Settings, or choose Previous debt for an existing balance.")
+                            .font(.system(size: 12))
+                            .foregroundStyle(FinTheme.ink400)
+                            .padding(.vertical, 8)
+                    }
+                }
                 detailRow(label: "Date") {
                     ThemedDateField(date: $date, components: [.date, .hourAndMinute])
                 }
@@ -198,6 +239,7 @@ struct SettlementEditorView: View {
             date = settlement.date
             note = settlement.note ?? ""
             selectedAccountID = settlement.account?.id
+            isPreviousDebt = settlement.account == nil
             return
         }
         if let uuid = UUID(uuidString: lastAccountID),
@@ -210,8 +252,8 @@ struct SettlementEditorView: View {
     }
 
     private func save() {
-        guard let amount else { return }
-        let account = accounts.first { $0.id == selectedAccountID }
+        guard canSave, let amount else { return }
+        let account = isPreviousDebt ? nil : accounts.first { $0.id == selectedAccountID }
         let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
         if let settlement {
             store.updateSettlement(
@@ -227,7 +269,7 @@ struct SettlementEditorView: View {
         if let account { lastAccountID = account.id.uuidString }
         FinHaptics.success()
         ToastCenter.shared.show(
-            settlement == nil ? "Settled up" : "Updated",
+            settlement != nil ? "Updated" : (isPreviousDebt ? "Debt recorded" : (lending ? "Payment added" : "Settled up")),
             detail: "\(person.name) \(CurrencyFormatter.string(amount))",
             after: .milliseconds(350)
         )

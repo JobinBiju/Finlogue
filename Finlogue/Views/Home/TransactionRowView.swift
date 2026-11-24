@@ -104,6 +104,7 @@ struct TransactionRowView: View {
 
     private var subtitle: String {
         if transaction.isSettlement {
+            if transaction.account == nil { return "Previous debt" }
             let kind = transaction.type == .income ? "Repayment" : "Settled up"
             return kind + (transaction.account.map { " · \($0.name)" } ?? "")
         }

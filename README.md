@@ -30,7 +30,7 @@ A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI*
 
 - **Transactions** — add, edit, delete; income, expense, or **transfer**; notes; grouped by day with search and filters (type, account, category, **person**, date range). The name field suggests previously logged names as you type — tapping a suggestion also fills in that transaction's category, account, and amount for two-tap repeat entries.
 - **Charges** — record extra fees on top of the amount (e.g. a credit-card surcharge). The total `amount + charges` is what's deducted from the account and reflected in the credit-card billing cycle; the fee shows as a lighter line beneath the amount on each transaction.
-- **Split expenses & people** — split a bill among friends by entering each person's exact share; your share is the remainder. Only **your share** counts toward the Spent tile, insights, and budgets — the amounts you fronted are excluded because you'll be paid back — while the full bill still leaves your account. Each person has a **ledger** (Settings → People): their outstanding balance, every share they owe, and every repayment. **Record repayments** (partial or full) from a person's screen — logged as a settlement that returns money to an account but is kept out of income stats. Manage people (name + avatar colour) or add one inline while splitting, and filter the transaction list by person.
+- **Split expenses & people** — split a bill by **exact amounts**, **equally**, or **weighted shares** including your own (e.g. you: 3, a friend: 2, another: 1). Share steppers and a live percentage breakdown show each person's portion; rounding keeps the amounts equal to the full bill including fees. The method and share counts are saved, so amount edits recalculate equal/weighted splits. Only **your share** counts toward spending, insights, and budgets while the full bill leaves your account. Each person has a **ledger** (Settings → People) with both directions of debt: **They paid for me** logs your spending covered by someone else, **I paid for them** logs money you lent or paid on their behalf, and **Settle up** records partial or full repayments. Enable **Previous debt** to record an existing balance without changing an account. People can be added inline, and the transaction list can be filtered by person.
 - **Transfers** — first-class moves between your own accounts (salary sweeps, credit-card bill payments). Both account balances update, but transfers are excluded from income/spent stats, charts, and budgets, so analytics reflect real earning and spending only.
 - **Accounts** — bank, credit card, and cash accounts, grouped as **Banks / Cards / Others** everywhere they're listed. Balances are *computed* from transactions (no drift). Theme-colored gradient cards on the Home carousel with snap scrolling; card text auto-switches between light and dark for legibility in every theme.
 - **Credit cards** — credit limit with a utilization gauge and available credit; editable **current outstanding** (rebase to match your real statement anytime); optional **statement day** for the billing cycle, which splits the outstanding into **billed vs unbilled** on the account card. Paying a bill (a transfer into the card) drains the billed amount first.
@@ -54,6 +54,17 @@ A personal finance tracker for **iPhone and Apple Watch**, built with **SwiftUI*
 - **Phone → Watch**: full snapshot via `updateApplicationContext` (durable, survives unreachability, deletions propagate) plus an instant `sendMessage` when reachable.
 - **Watch → Phone**: new transactions via `sendMessage` with a queued `transferUserInfo` fallback; the phone dedupes by UUID, so double delivery is harmless.
 - The phone is the source of truth; the watch keeps its own local SwiftData store so it works offline.
+
+---
+
+### Split calculation checks
+
+Run the standalone checks for weighted/equal allocation, rounding, validation, and editing:
+
+```bash
+swiftc -module-cache-path /private/tmp/finlogue-split-module-cache Shared/Models/ExpenseSplit.swift Finlogue/Services/SplitPlan.swift Tests/ExpenseSplitChecks.swift -o /private/tmp/finlogue-expense-split-checks
+/private/tmp/finlogue-expense-split-checks
+```
 
 ---
 

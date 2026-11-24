@@ -145,6 +145,7 @@ struct TransactionDTO: Codable, Identifiable {
     var personID: UUID?
     var isSettlement: Bool
     var paidByPerson: Bool
+    var splitSettings: SplitSettings?
     var createdAt: Date
     var updatedAt: Date
 
@@ -162,6 +163,7 @@ struct TransactionDTO: Codable, Identifiable {
         personID = transaction.person?.id
         isSettlement = transaction.isSettlement
         paidByPerson = transaction.paidByPerson
+        splitSettings = transaction.splitSettingsData == nil ? nil : transaction.splitSettings
         createdAt = transaction.createdAt
         updatedAt = transaction.updatedAt
     }
@@ -169,6 +171,7 @@ struct TransactionDTO: Codable, Identifiable {
     private enum CodingKeys: String, CodingKey {
         case id, type, name, amount, charges, date, note
         case accountID, toAccountID, categoryID, personID, isSettlement, paidByPerson, createdAt, updatedAt
+        case splitSettings
     }
 
     // Custom decode so snapshots from older builds (no charges/personID/
@@ -188,6 +191,7 @@ struct TransactionDTO: Codable, Identifiable {
         personID = try container.decodeIfPresent(UUID.self, forKey: .personID)
         isSettlement = try container.decodeIfPresent(Bool.self, forKey: .isSettlement) ?? false
         paidByPerson = try container.decodeIfPresent(Bool.self, forKey: .paidByPerson) ?? false
+        splitSettings = try container.decodeIfPresent(SplitSettings.self, forKey: .splitSettings)
         createdAt = try container.decode(Date.self, forKey: .createdAt)
         updatedAt = try container.decode(Date.self, forKey: .updatedAt)
     }
@@ -226,6 +230,7 @@ struct RecurringRuleDTO: Codable, Identifiable {
     var lastPostedDate: Date?
     var isActive: Bool
     var updatedAt: Date
+    var splitSettings: SplitSettings?
 
     init(from rule: RecurringRule) {
         id = rule.id
@@ -243,6 +248,7 @@ struct RecurringRuleDTO: Codable, Identifiable {
         lastPostedDate = rule.lastPostedDate
         isActive = rule.isActive
         updatedAt = rule.updatedAt
+        splitSettings = rule.splitSettingsData == nil ? nil : rule.splitSettings
     }
 }
 

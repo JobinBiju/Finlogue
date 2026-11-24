@@ -18,6 +18,7 @@ struct PersonDetailView: View {
 
     @State private var showSettlement = false
     @State private var showBorrowed = false
+    @State private var showLent = false
     @State private var showEdit = false
     @State private var editing: EditTarget?
 
@@ -107,6 +108,9 @@ struct PersonDetailView: View {
         }
         .sheet(isPresented: $showBorrowed) {
             BorrowedExpenseEditorView(person: person)
+        }
+        .sheet(isPresented: $showLent) {
+            SettlementEditorView(person: person, lending: true)
         }
         .sheet(isPresented: $showEdit) {
             PersonEditorView(person: person)
@@ -231,6 +235,21 @@ struct PersonDetailView: View {
 
                     Button {
                         FinHaptics.tap()
+                        showLent = true
+                    } label: {
+                        Label("I paid for them", systemImage: "arrow.up.right")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(FinTheme.ink)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background {
+                                Capsule().strokeBorder(FinTheme.line, lineWidth: 1.5)
+                            }
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        FinHaptics.tap()
                         showBorrowed = true
                     } label: {
                         HStack(spacing: 8) {
@@ -288,7 +307,7 @@ struct PersonDetailView: View {
             row(
                 symbol: "arrow.down.left",
                 tint: FinTheme.green,
-                title: "\(person.name) paid you",
+                title: transaction.account == nil ? "Previous debt to \(person.name)" : "\(person.name) paid you",
                 date: entry.date,
                 breakdown: nil,
                 amount: transaction.amount,
@@ -299,7 +318,7 @@ struct PersonDetailView: View {
             row(
                 symbol: "arrow.up.right",
                 tint: FinTheme.coral,
-                title: "You paid \(person.name)",
+                title: transaction.account == nil ? "Previous debt from \(person.name)" : "You paid \(person.name)",
                 date: entry.date,
                 breakdown: nil,
                 amount: transaction.amount,

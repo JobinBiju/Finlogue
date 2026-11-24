@@ -178,7 +178,13 @@ struct HomeView: View {
                 TransactionEditorView()
             }
             .sheet(item: $editingTransaction) { transaction in
-                TransactionEditorView(transaction: transaction)
+                if let person = transaction.person, transaction.isSettlement {
+                    SettlementEditorView(person: person, settlement: transaction)
+                } else if let person = transaction.person, transaction.paidByPerson {
+                    BorrowedExpenseEditorView(person: person, expense: transaction)
+                } else {
+                    TransactionEditorView(transaction: transaction)
+                }
             }
             .sheet(isPresented: $showFilter) {
                 TransactionFilterView(filter: $filter)

@@ -254,6 +254,7 @@ enum SnapshotBuilder {
             transaction.person = dto.personID.flatMap { peopleByID[$0] }
             transaction.isSettlement = dto.isSettlement
             transaction.paidByPerson = dto.paidByPerson
+            transaction.splitSettingsData = dto.splitSettings?.data
             transaction.createdAt = dto.createdAt
             transaction.updatedAt = dto.updatedAt
         }
@@ -334,6 +335,7 @@ enum SnapshotBuilder {
             rule.lastPostedDate = dto.lastPostedDate
             rule.isActive = dto.isActive
             rule.updatedAt = dto.updatedAt
+            rule.splitSettingsData = dto.splitSettings?.data
         }
 
         // Recurring split templates (reference rules + people)

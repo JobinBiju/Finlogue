@@ -38,6 +38,8 @@ final class Transaction {
     /// Friends' shares of this transaction. Cascade-deleted with it.
     @Relationship(deleteRule: .cascade, inverse: \TransactionSplit.transaction)
     var splits: [TransactionSplit]? = []
+    /// Optional for compatibility with existing stores and exact-amount splits.
+    var splitSettingsData: Data?
     var createdAt: Date
     var updatedAt: Date
 
@@ -78,6 +80,11 @@ final class Transaction {
     var type: TransactionType {
         get { TransactionType(rawValue: typeRaw) ?? .expense }
         set { typeRaw = newValue.rawValue }
+    }
+
+    var splitSettings: SplitSettings {
+        get { SplitSettings(data: splitSettingsData) }
+        set { splitSettingsData = newValue.data }
     }
 
     /// Positive for income, negative for expense, zero for transfers

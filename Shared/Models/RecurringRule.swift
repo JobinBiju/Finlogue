@@ -33,6 +33,7 @@ final class RecurringRule {
     /// Per-person share templates. Copied onto each posted occurrence.
     @Relationship(deleteRule: .cascade, inverse: \RecurringSplit.rule)
     var splits: [RecurringSplit]? = []
+    var splitSettingsData: Data?
 
     init(
         id: UUID = UUID(),
@@ -71,6 +72,11 @@ final class RecurringRule {
     var type: TransactionType {
         get { TransactionType(rawValue: typeRaw) ?? .expense }
         set { typeRaw = newValue.rawValue }
+    }
+
+    var splitSettings: SplitSettings {
+        get { SplitSettings(data: splitSettingsData) }
+        set { splitSettingsData = newValue.data }
     }
 
     var frequency: RecurrenceFrequency {

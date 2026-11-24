@@ -21,8 +21,8 @@ struct WatchHomeView: View {
     private var monthSpent: Double {
         guard let interval = Calendar.current.dateInterval(of: .month, for: .now) else { return 0 }
         return transactions
-            .filter { $0.type == .expense && $0.date >= interval.start && $0.date < interval.end }
-            .reduce(0) { $0 + $1.amount }
+            .filter { $0.type == .expense && !$0.isSettlement && $0.date >= interval.start && $0.date < interval.end }
+            .reduce(0) { $0 + $1.myShare }
     }
 
     var body: some View {

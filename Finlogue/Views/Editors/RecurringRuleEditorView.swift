@@ -30,7 +30,7 @@ struct RecurringRuleEditorView: View {
     @State private var isLoan = false
     @State private var installmentsText = ""
     @State private var autoPost = true
-    @State private var splitDrafts: [SplitDraft] = []
+    @State private var splitPlan = SplitPlan()
     @State private var showSplitEditor = false
 
     private var typeCategories: [Category] {
@@ -87,18 +87,19 @@ struct RecurringRuleEditorView: View {
     private var showsSplit: Bool { type == .expense }
     private var splitTotalValue: Double { amount ?? 0 }
     private var othersShareDraft: Double {
-        splitDrafts.reduce(0) { $0 + max(0, $1.amount) }
+        splitPlan.amounts(total: splitTotalValue)?.dropFirst().reduce(0, +) ?? 0
     }
     private var myShareDraft: Double { max(0, splitTotalValue - othersShareDraft) }
 
     private var splitSummary: String {
-        guard !splitDrafts.isEmpty else { return "Just me" }
-        let count = splitDrafts.count
-        return "\(count) \(count == 1 ? "person" : "people") · you \(CurrencyFormatter.string(myShareDraft))"
+        guard !splitPlan.participants.isEmpty else { return "Just me" }
+        guard splitPlan.amounts(total: splitTotalValue) != nil else { return "Check split amounts" }
+        return "\(splitPlan.method.label) · you \(CurrencyFormatter.string(myShareDraft))"
     }
 
     private var canSave: Bool {
-        guard let amount, amount > 0 else { return false }
+        guard let amount, amount.isFinite, amount > 0 else { return false }
+        if showsSplit, splitPlan.amounts(total: splitTotalValue) == nil { return false }
         if isLoan, Int(installmentsText) == nil { return false }
         if type == .transfer,
            selectedToAccountID == nil || selectedToAccountID == selectedAccountID {
@@ -157,7 +158,7 @@ struct RecurringRuleEditorView: View {
         .background(FinTheme.canvas)
         .fontDesign(.rounded)
         .sheet(isPresented: $showSplitEditor) {
-            SplitEditorView(splits: $splitDrafts, total: splitTotalValue)
+            SplitEditorView(plan: $splitPlan, total: splitTotalValue)
         }
         .onAppear(perform: populate)
         .onChange(of: type) { _, newType in
@@ -422,17 +423,20 @@ struct RecurringRuleEditorView: View {
             installmentsText = "\(remaining)"
         }
         autoPost = rule.autoPost
-        splitDrafts = (rule.splits ?? []).compactMap { split in
-            guard let personID = split.person?.id else { return nil }
-            return SplitDraft(personID: personID, amount: split.shareAmount)
-        }
+        splitPlan = SplitPlan(
+            participants: (rule.splits ?? []).compactMap { split in
+                guard let personID = split.person?.id else { return nil }
+                return SplitDraft(personID: personID, amount: split.shareAmount)
+            },
+            settings: rule.splitSettings
+        )
     }
 
     private func save() {
-        guard let amount else { return }
+        guard canSave, let amount else { return }
         let splits: [TransactionStore.SplitShare] = showsSplit
-            ? splitDrafts.compactMap { draft in
-                guard draft.amount > 0, let person = people.first(where: { $0.id == draft.personID })
+            ? (splitPlan.resolved(total: splitTotalValue) ?? []).compactMap { draft in
+                guard let person = people.first(where: { $0.id == draft.personID })
                 else { return nil }
                 return (person: person, amount: draft.amount)
             }
@@ -449,7 +453,8 @@ struct RecurringRuleEditorView: View {
             dayAnchor: startDate,
             remainingInstallments: isLoan ? Int(installmentsText) : nil,
             autoPost: autoPost,
-            splits: splits
+            splits: splits,
+            splitSettings: showsSplit ? splitPlan.settings : SplitSettings()
         )
         FinHaptics.success()
         dismiss()

@@ -108,7 +108,8 @@ final class TransactionStore: ObservableObject {
         account: Account?,
         toAccount: Account? = nil,
         category: Category?,
-        splits: [SplitShare] = []
+        splits: [SplitShare] = [],
+        splitSettings: SplitSettings = SplitSettings()
     ) {
         let transaction = Transaction(
             type: type, name: name, amount: amount,
@@ -117,6 +118,7 @@ final class TransactionStore: ObservableObject {
             toAccount: type == .transfer ? toAccount : nil,
             category: type == .transfer ? nil : category
         )
+        transaction.splitSettings = type == .expense ? splitSettings : SplitSettings()
         context.insert(transaction)
         applySplits(splits, to: transaction, type: type)
         persist()
@@ -133,7 +135,8 @@ final class TransactionStore: ObservableObject {
         account: Account?,
         toAccount: Account? = nil,
         category: Category?,
-        splits: [SplitShare] = []
+        splits: [SplitShare] = [],
+        splitSettings: SplitSettings = SplitSettings()
     ) {
         transaction.type = type
         transaction.name = name
@@ -145,19 +148,20 @@ final class TransactionStore: ObservableObject {
         transaction.toAccount = type == .transfer ? toAccount : nil
         transaction.category = type == .transfer ? nil : category
         transaction.updatedAt = .now
+        transaction.splitSettings = type == .expense ? splitSettings : SplitSettings()
         applySplits(splits, to: transaction, type: type)
         persist()
     }
 
-    /// Replaces a transaction's splits with the given shares. Transfers can't be
-    /// split, and zero/negative shares are dropped.
+    /// Keep zero amounts for calculated splits so participants survive rounding
+    /// on tiny bills and can participate when the total is edited later.
     private func applySplits(_ splits: [SplitShare], to transaction: Transaction, type: TransactionType) {
         for existing in transaction.splits ?? [] {
             context.delete(existing)
         }
         transaction.splits = []
-        guard type != .transfer else { return }
-        for share in splits where share.amount > 0 {
+        guard type == .expense else { return }
+        for share in splits where share.amount > 0 || (share.amount == 0 && transaction.splitSettings.method != .exact) {
             let split = TransactionSplit(
                 transaction: transaction, person: share.person, shareAmount: share.amount
             )
@@ -184,7 +188,7 @@ final class TransactionStore: ObservableObject {
     ) {
         let transaction = Transaction(
             type: direction == .received ? .income : .expense,
-            name: "\(direction == .received ? "Repayment" : "Paid") · \(person.name)",
+            name: "\(account == nil ? "Previous debt" : (direction == .received ? "Repayment" : "Paid")) · \(person.name)",
             amount: amount,
             date: date,
             note: note,
@@ -209,7 +213,7 @@ final class TransactionStore: ObservableObject {
     ) {
         let personName = transaction.person?.name ?? ""
         transaction.type = direction == .received ? .income : .expense
-        transaction.name = "\(direction == .received ? "Repayment" : "Paid") · \(personName)"
+        transaction.name = "\(account == nil ? "Previous debt" : (direction == .received ? "Repayment" : "Paid")) · \(personName)"
         transaction.amount = amount
         transaction.date = date
         transaction.account = account
@@ -420,7 +424,8 @@ final class TransactionStore: ObservableObject {
         dayAnchor: Date,
         remainingInstallments: Int?,
         autoPost: Bool,
-        splits: [SplitShare] = []
+        splits: [SplitShare] = [],
+        splitSettings: SplitSettings = SplitSettings()
     ) {
         let destination = type == .transfer ? toAccount : nil
         let ruleCategory = type == .transfer ? nil : category
@@ -448,6 +453,7 @@ final class TransactionStore: ObservableObject {
             context.insert(created)
             target = created
         }
+        target.splitSettings = type == .expense ? splitSettings : SplitSettings()
         applyRuleSplits(splits, to: target, type: type)
         persist()
     }
@@ -459,7 +465,7 @@ final class TransactionStore: ObservableObject {
         }
         rule.splits = []
         guard type == .expense else { return }
-        for share in splits where share.amount > 0 {
+        for share in splits where share.amount > 0 || (share.amount == 0 && rule.splitSettings.method != .exact) {
             context.insert(RecurringSplit(
                 rule: rule, person: share.person, shareAmount: share.amount
             ))
@@ -484,6 +490,7 @@ final class TransactionStore: ObservableObject {
             category: rule.category
         )
         context.insert(transaction)
+        transaction.splitSettings = rule.splitSettings
         // Copy the rule's split templates onto this occurrence as real splits.
         for template in rule.splits ?? [] {
             guard let person = template.person else { continue }
